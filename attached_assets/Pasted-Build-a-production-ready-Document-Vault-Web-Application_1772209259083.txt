@@ -1,0 +1,304 @@
+Build a production-ready Document Vault Web Application where authenticated users can securely:
+
+Upload documents
+
+View uploaded documents
+
+Download documents
+
+Preview supported file types
+
+The application must use:
+
+Frontend: Next.js (App Router) + TypeScript
+
+Backend: Supabase (Auth + Database + Storage)
+
+UI: TailwindCSS + shadcn/ui (or equivalent high-end component system)
+
+Database & Storage: Supabase PostgreSQL + Supabase Storage
+
+The design must look like a premium SaaS product, not a default developer template.
+
+1️⃣ Authentication (Supabase Auth)
+
+Use Supabase Auth with:
+
+Email + password authentication
+
+Secure session handling
+
+Server-side session validation
+
+Protected dashboard routes
+
+Users must only access their own documents.
+
+2️⃣ Database Design (Supabase PostgreSQL)
+
+Create the following table:
+
+documents
+Column	Type
+id	uuid (primary key, default uuid_generate_v4())
+user_id	uuid (foreign key → auth.users.id, on delete cascade)
+original_name	text
+stored_path	text
+file_size	bigint
+mime_type	text
+created_at	timestamp with time zone (default now())
+Row Level Security (MANDATORY)
+
+Enable RLS and create policies:
+
+Users can only SELECT their own documents
+
+Users can only INSERT their own documents
+
+Users can only DELETE their own documents
+
+No public access allowed.
+
+3️⃣ File Storage (Supabase Storage)
+
+Create a private bucket:
+
+document-vault
+
+Rules:
+
+Files stored as:
+
+{user_id}/{uuid}.{extension}
+
+Max file size: 10MB
+
+Allowed types:
+
+application/pdf
+
+image/png
+
+image/jpeg
+
+text/plain
+
+application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+Files must not be publicly accessible.
+Use signed URLs for viewing/downloading.
+
+4️⃣ Features
+Upload Flow
+
+User selects file
+
+Validate file type
+
+Validate file size
+
+Rename using UUID
+
+Upload to Supabase Storage
+
+Insert metadata row into documents
+
+Refresh UI instantly
+
+Dashboard
+
+Display a professional data table:
+
+Columns:
+
+File Name
+
+Type
+
+Size (formatted KB/MB)
+
+Upload Date
+
+View
+
+Download
+
+Delete
+
+Must include:
+
+Search by file name
+
+Pagination
+
+Empty state design
+
+Loading skeletons
+
+5️⃣ File Viewing Logic
+
+Use signed URLs:
+
+PDF → Open in new tab (inline preview)
+
+Images → Inline preview
+
+TXT → Render content in modal
+
+DOCX → Force download
+
+Signed URLs must expire (e.g., 60 seconds).
+
+6️⃣ UI / UX Requirements (IMPORTANT)
+Design Philosophy
+
+The UI must feel like:
+
+Enterprise SaaS
+
+Clean, structured
+
+Premium fintech or legal-tech product
+
+Minimal but confident
+
+Avoid:
+
+Neon gradients
+
+Default Tailwind blue
+
+Overused purple/pink startup themes
+
+🎨 Premium Color Palette (Use This)
+
+Primary:
+
+Deep Navy: #0F172A
+
+Rich Slate: #1E293B
+
+Accent:
+
+Muted Gold: #C6A75E
+OR
+
+Champagne Beige: #E8D8B9
+
+Background:
+
+Soft Off-White: #F8FAFC
+
+Card background: #FFFFFF
+
+Text:
+
+Primary: #0F172A
+
+Secondary: #475569
+
+Buttons:
+
+Primary: Navy background + light text
+
+Hover: Slight elevation + subtle brightness
+
+Shadows:
+
+Soft, diffused shadows
+
+No harsh drop shadows
+
+Border radius:
+
+12px–16px (modern SaaS feel)
+
+7️⃣ Layout Structure
+Auth Pages
+
+Centered card
+
+Minimal design
+
+Strong typography
+
+Subtle background texture or gradient wash
+
+Dashboard Layout
+
+Fixed left sidebar (collapsed version supported)
+
+Top navigation bar
+
+Main content container (max width 1280px)
+
+Sidebar items:
+
+Dashboard
+
+Upload
+
+Settings
+
+Logout
+
+8️⃣ Security Requirements
+
+Enforce RLS strictly
+
+Never expose storage public URLs
+
+Validate file type on client AND server
+
+Validate file size before upload
+
+Prevent overwriting existing files
+
+Handle errors properly
+
+9️⃣ Folder Structure
+app/
+  (auth)/
+  dashboard/
+  layout.tsx
+
+components/
+  ui/
+  dashboard/
+  upload/
+
+lib/
+  supabaseClient.ts
+  auth.ts
+  storage.ts
+
+types/
+🔟 Extra (Optional but Professional)
+
+Drag & drop upload area
+
+Upload progress indicator
+
+Delete confirmation modal
+
+Dark mode version (luxury dark theme using charcoal + gold accent)
+
+File size formatter utility
+
+Toast notifications
+
+Rate limiting upload attempts
+
+Final Requirement
+
+The final product must:
+
+Look like a paid SaaS product
+
+Be cleanly structured
+
+Be secure
+
+Follow professional UI spacing rules (8px system)
+
+Avoid default dev aesthetic
