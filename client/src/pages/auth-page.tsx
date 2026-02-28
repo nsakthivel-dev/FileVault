@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Redirect } from "wouter";
 import { motion } from "framer-motion";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -15,19 +15,16 @@ type AuthForm = z.infer<typeof insertUserSchema>;
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [, setLocation] = useLocation();
   const { login, register, user } = useAuth();
+
+  if (user) {
+    return <Redirect to="/" />;
+  }
 
   const form = useForm<AuthForm>({
     resolver: zodResolver(insertUserSchema),
     defaultValues: { username: "", password: "" },
   });
-
-  // Redirect if already logged in
-  if (user) {
-    setLocation("/");
-    return null;
-  }
 
   const onSubmit = async (data: AuthForm) => {
     if (isLogin) {

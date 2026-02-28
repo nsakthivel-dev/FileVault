@@ -15,7 +15,7 @@ export function useAuth() {
       if (!res.ok) throw new Error("Failed to fetch user");
       return api.auth.me.responses[200].parse(await res.json());
     },
-    staleTime: 0,
+    staleTime: 60000, // 1 minute
   });
 
   const loginMutation = useMutation({

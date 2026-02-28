@@ -41,11 +41,15 @@ export function setupAuth(app: Express) {
       createTableIfMissing: true,
     }),
     cookie: {
-      secure: app.get("env") === "production",
+      secure: false, // Changed from app.get("env") === "production"
       maxAge: 30 * 24 * 60 * 60 * 1000,
       sameSite: "lax",
     }
   };
+
+  if (app.get("env") === "production") {
+    app.set("trust proxy", 1);
+  }
 
   app.use(session(sessionSettings));
   app.use(passport.initialize());
