@@ -1,7 +1,13 @@
-import { pgTable, text, varchar, serial, timestamp, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, timestamp, bigint, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+
+export const sessions = pgTable("session", {
+  sid: varchar("sid").primaryKey(),
+  sess: json("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
+});
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
