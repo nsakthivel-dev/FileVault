@@ -17,14 +17,14 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const { login, register, user } = useAuth();
 
-  if (user) {
-    return <Redirect to="/" />;
-  }
-
   const form = useForm<AuthForm>({
     resolver: zodResolver(insertUserSchema),
     defaultValues: { username: "", password: "" },
   });
+
+  if (user) {
+    return <Redirect to="/" />;
+  }
 
   const onSubmit = async (data: AuthForm) => {
     if (isLogin) {
