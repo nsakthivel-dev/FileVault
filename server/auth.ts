@@ -33,7 +33,7 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID!,
+    secret: process.env.SESSION_SECRET || process.env.REPL_ID || "secure-document-vault-secret",
     resave: false,
     saveUninitialized: false,
     store: new PostgresStore({
@@ -43,6 +43,7 @@ export function setupAuth(app: Express) {
     cookie: {
       secure: app.get("env") === "production",
       maxAge: 30 * 24 * 60 * 60 * 1000,
+      sameSite: "lax",
     }
   };
 
