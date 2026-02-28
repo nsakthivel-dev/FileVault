@@ -46,6 +46,7 @@ export default function DocumentPreviewPage() {
   const isImage = document.mimeType.startsWith('image/');
   const isPdf = document.mimeType === 'application/pdf';
   const canPreview = isImage || isPdf;
+  const previewUrl = buildUrl(api.documents.preview.path, { id: document.id });
   const downloadUrl = buildUrl(api.documents.download.path, { id: document.id });
 
   return (
@@ -69,7 +70,7 @@ export default function DocumentPreviewPage() {
           </div>
         </div>
         <div className="flex items-center shrink-0 ml-4">
-          <Button 
+          <Button
             onClick={handleDownload}
             className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold rounded-lg shadow-lg shadow-accent/20"
           >
@@ -80,18 +81,26 @@ export default function DocumentPreviewPage() {
 
       {/* Main Preview Area */}
       <main className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-slate-900 overflow-hidden relative">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4 }}
           className="w-full h-full max-w-5xl bg-slate-950 rounded-2xl border border-slate-800 premium-shadow overflow-hidden flex flex-col"
         >
           {canPreview ? (
-            <iframe 
-              src={downloadUrl} 
-              className="w-full h-full bg-white"
-              title={document.originalName}
-            />
+            isImage ? (
+              <img
+                src={previewUrl}
+                alt={document.originalName}
+                className="w-full h-full object-contain p-4"
+              />
+            ) : (
+              <iframe
+                src={previewUrl}
+                className="w-full h-full bg-white"
+                title={document.originalName}
+              />
+            )
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
               <div className="h-24 w-24 bg-slate-800/50 rounded-full flex items-center justify-center mb-6">
@@ -101,7 +110,7 @@ export default function DocumentPreviewPage() {
               <p className="text-slate-400 max-w-md mb-8">
                 This file type ({document.mimeType}) cannot be previewed securely in the browser. Please download the file to view its contents.
               </p>
-              <Button 
+              <Button
                 onClick={handleDownload}
                 size="lg"
                 className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl shadow-black/20"

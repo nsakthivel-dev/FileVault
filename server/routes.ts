@@ -41,7 +41,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/documents/:id", requireAuth, async (req, res) => {
-    const doc = await storage.getDocument(req.params.id);
+    const doc = await storage.getDocument(req.params.id as string);
     if (!doc || doc.userId !== req.user!.id) {
       return res.status(404).json({ message: "Not found" });
     }
@@ -66,7 +66,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/documents/:id", requireAuth, async (req, res) => {
-    const doc = await storage.getDocument(req.params.id);
+    const doc = await storage.getDocument(req.params.id as string);
     if (!doc || doc.userId !== req.user!.id) {
       return res.status(404).json({ message: "Not found" });
     }
@@ -82,12 +82,25 @@ export async function registerRoutes(
   });
 
   app.get("/api/documents/:id/download", requireAuth, async (req, res) => {
-    const doc = await storage.getDocument(req.params.id);
+    const doc = await storage.getDocument(req.params.id as string);
     if (!doc || doc.userId !== req.user!.id) {
       return res.status(404).json({ message: "Not found" });
     }
 
     res.download(doc.storedPath, doc.originalName);
+  });
+
+  app.get("/api/documents/:id/preview", requireAuth, async (req, res) => {
+    const doc = await storage.getDocument(req.params.id as string);
+    if (!doc || doc.userId !== req.user!.id) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    res.set({
+      "Content-Type": doc.mimeType,
+      "Content-Disposition": `inline; filename="${doc.originalName}"`
+    });
+    res.sendFile(path.resolve(doc.storedPath));
   });
 
   return httpServer;

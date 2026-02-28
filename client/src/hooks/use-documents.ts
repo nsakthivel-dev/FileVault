@@ -41,7 +41,7 @@ export function useUploadDocument() {
         body: formData,
         credentials: "include",
       });
-      
+
       if (!res.ok) {
         if (res.status === 400) {
           const err = api.documents.upload.responses[400].parse(await res.json());

@@ -18,16 +18,16 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { login, register, user } = useAuth();
 
+  const form = useForm<AuthForm>({
+    resolver: zodResolver(insertUserSchema),
+    defaultValues: { username: "", password: "" },
+  });
+
   // Redirect if already logged in
   if (user) {
     setLocation("/");
     return null;
   }
-
-  const form = useForm<AuthForm>({
-    resolver: zodResolver(insertUserSchema),
-    defaultValues: { username: "", password: "" },
-  });
 
   const onSubmit = async (data: AuthForm) => {
     if (isLogin) {
@@ -44,17 +44,17 @@ export default function AuthPage() {
       {/* Left side - Decorative Premium Area */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-primary overflow-hidden items-center justify-center p-12">
         {/* landing page hero abstract dark premium texture */}
-        <img 
-          src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" 
-          alt="Premium Architecture" 
+        <img
+          src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop"
+          alt="Premium Architecture"
           className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/95 to-secondary/90 z-10" />
-        
+
         <div className="relative z-20 max-w-lg">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             className="flex items-center space-x-4 mb-8"
           >
@@ -63,18 +63,18 @@ export default function AuthPage() {
             </div>
             <h1 className="text-white text-5xl font-display font-bold tracking-tight">Vault.</h1>
           </motion.div>
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
             className="text-primary-foreground/80 text-xl leading-relaxed"
           >
             The enterprise-grade document management system for your most sensitive files. End-to-end security, seamless access.
           </motion.p>
 
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
             className="mt-12 flex items-center space-x-6 text-sm text-primary-foreground/60 font-medium"
           >
@@ -86,9 +86,9 @@ export default function AuthPage() {
 
       {/* Right side - Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }} 
-          animate={{ opacity: 1, scale: 1 }} 
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
           className="w-full max-w-md bg-white rounded-3xl premium-shadow border border-slate-100 p-8 sm:p-10"
         >
           <div className="mb-8">
@@ -131,8 +131,8 @@ export default function AuthPage() {
               )}
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isPending}
               className="w-full h-12 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold text-lg shadow-lg shadow-primary/20 transition-all duration-300 hover:-translate-y-0.5 group"
             >

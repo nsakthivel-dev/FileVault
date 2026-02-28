@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
 import DocumentPreviewPage from "@/pages/document-preview-page";
+import SettingsPage from "@/pages/settings-page";
 import { useAuth } from "@/hooks/use-auth";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -37,6 +38,12 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/">
         {() => <ProtectedRoute component={DashboardPage} />}
+      </Route>
+      <Route path="/documents">
+        {() => <ProtectedRoute component={DashboardPage} />}
+      </Route>
+      <Route path="/settings">
+        {() => <ProtectedRoute component={SettingsPage} />}
       </Route>
       <Route path="/d/:id">
         {() => <ProtectedRoute component={DocumentPreviewPage} />}

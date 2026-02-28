@@ -24,7 +24,7 @@ export const api = {
       path: '/api/register' as const,
       input: insertUserSchema,
       responses: {
-        201: z.custom<typeof import('./schema').User>(),
+        201: z.custom<import('./schema').User>(),
         400: errorSchemas.validation,
       }
     },
@@ -33,7 +33,7 @@ export const api = {
       path: '/api/login' as const,
       input: insertUserSchema,
       responses: {
-        200: z.custom<typeof import('./schema').User>(),
+        200: z.custom<import('./schema').User>(),
         401: errorSchemas.unauthorized,
       }
     },
@@ -48,7 +48,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/user' as const,
       responses: {
-        200: z.custom<typeof import('./schema').User>(),
+        200: z.custom<import('./schema').User>(),
         401: errorSchemas.unauthorized,
       }
     }
@@ -92,6 +92,15 @@ export const api = {
     download: {
       method: 'GET' as const,
       path: '/api/documents/:id/download' as const,
+      responses: {
+        200: z.any(),
+        401: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
+      }
+    },
+    preview: {
+      method: 'GET' as const,
+      path: '/api/documents/:id/preview' as const,
       responses: {
         200: z.any(),
         401: errorSchemas.unauthorized,
