@@ -552,7 +552,7 @@ export class FirestoreStorage implements IStorage {
       if (docs.length > 0 && supabase) {
         try {
           const rows = docs.map(mapDocToSupabase);
-          supabase.from("documents").upsert(rows).catch(() => {});
+          void supabase.from("documents").upsert(rows).then(() => {}, () => {});
         } catch {}
       }
     }
