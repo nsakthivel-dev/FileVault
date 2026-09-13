@@ -350,12 +350,34 @@ export class FirestoreStorage implements IStorage {
     try {
       const userFolder = await this.getUserFolder(userId);
       const bucketName = getSupabaseBucketName();
-      const userDocs = Array.from(this.documents.values()).filter((d) => d.ownerId === userId);
+      const userDocs = Array.from(this.documents.values()).filter((d) => 
+        d.ownerId === userId || 
+        d.ownerId === userFolder || 
+        (d.ownerId && d.ownerId.includes(userFolder))
+      ).map((d) => ({ ...d, ownerId: userId }));
+
+      if (userDocs.length === 0) return;
+
       const manifestBuf = Buffer.from(JSON.stringify(userDocs, null, 2), "utf-8");
+      
+      // Save manifest to primary user folder
       await supabase.storage.from(bucketName).upload(`users/${userFolder}/.vault_manifest.json`, manifestBuf, {
         upsert: true,
         contentType: "application/json",
       });
+
+      // Also save to clean folder name if different (e.g. sakthicud07@gmail.com vs sakthicud07_gmail_com)
+      const user = await this.getUser(userId);
+      if (user?.email) {
+        const altFolder = user.email.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+        if (altFolder !== userFolder) {
+          supabase.storage.from(bucketName).upload(`users/${altFolder}/.vault_manifest.json`, manifestBuf, {
+            upsert: true,
+            contentType: "application/json",
+          }).catch(() => {});
+        }
+      }
+
       console.log(`[Supabase Storage] Synced ${userDocs.length} documents to manifest for user "${userFolder}"`);
     } catch (err: any) {
       console.warn("[Supabase Storage] Notice syncing user manifest:", err.message);
@@ -372,7 +394,7 @@ export class FirestoreStorage implements IStorage {
     const bucketName = getSupabaseBucketName();
     let loadedDocs: DocumentRecord[] = [];
 
-    // 1. Try reading .vault_manifest.json from Supabase Storage
+    // 1. FAST PATH: Check .vault_manifest.json in primary user folder (<150ms)
     try {
       const { data, error } = await supabase.storage.from(bucketName).download(`users/${userFolder}/.vault_manifest.json`);
       if (!error && data) {
@@ -383,111 +405,119 @@ export class FirestoreStorage implements IStorage {
           for (const doc of loadedDocs) {
             this.documents.set(doc.id, doc);
           }
+          return loadedDocs; // Return immediately without scanning!
         }
       }
     } catch (err: any) {
       console.warn("[Supabase Storage] Notice reading vault manifest:", err.message);
     }
 
-    // 2. Discover files in userFolder or across all user folders if empty
-    const foldersToScan = [userFolder];
-    if (loadedDocs.length === 0) {
-      try {
-        const { data: allFolders } = await supabase.storage.from(bucketName).list("users");
-        if (allFolders && allFolders.length > 0) {
-          for (const item of allFolders) {
-            if (!item.name.startsWith(".") && !foldersToScan.includes(item.name)) {
-              foldersToScan.push(item.name);
-            }
+    // 2. SECOND FAST PATH: Check .vault_manifest.json across all user folders in the bucket
+    try {
+      const { data: allFolders } = await supabase.storage.from(bucketName).list("users");
+      if (allFolders && allFolders.length > 0) {
+        for (const item of allFolders) {
+          if (!item.name.startsWith(".") && item.name !== userFolder) {
+            try {
+              const { data } = await supabase.storage.from(bucketName).download(`users/${item.name}/.vault_manifest.json`);
+              if (data) {
+                const parsed = JSON.parse(await data.text());
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  loadedDocs = parsed.map((d: DocumentRecord) => ({ ...d, ownerId: userId }));
+                  for (const doc of loadedDocs) {
+                    this.documents.set(doc.id, doc);
+                  }
+                  // Sync to primary userFolder manifest so next time it hits Path 1 in <150ms
+                  this.saveUserManifest(userId).catch(() => {});
+                  return loadedDocs;
+                }
+              }
+            } catch {}
           }
         }
-      } catch {}
-    }
+      }
+    } catch {}
 
-    for (const folder of foldersToScan) {
-      // Check manifest in this folder if loadedDocs is still empty
-      if (loadedDocs.length === 0 && folder !== userFolder) {
-        try {
-          const { data } = await supabase.storage.from(bucketName).download(`users/${folder}/.vault_manifest.json`);
-          if (data) {
-            const parsed = JSON.parse(await data.text());
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              for (const doc of parsed) {
-                const docWithUser = { ...doc, ownerId: userId };
-                loadedDocs.push(docWithUser);
-                this.documents.set(doc.id, docWithUser);
-              }
-            }
+    // 3. FALLBACK: Only if NO manifest exists anywhere, scan physical files in parallel
+    try {
+      const { data: allFolders } = await supabase.storage.from(bucketName).list("users");
+      const foldersToScan = [userFolder];
+      if (allFolders) {
+        for (const item of allFolders) {
+          if (!item.name.startsWith(".") && !foldersToScan.includes(item.name)) {
+            foldersToScan.push(item.name);
           }
-        } catch {}
+        }
       }
 
-      // Scan physical files in users/{folder}/documents/
-      try {
+      let hasNewFiles = false;
+      for (const folder of foldersToScan) {
         const { data: categories } = await supabase.storage.from(bucketName).list(`users/${folder}/documents`);
         if (categories && categories.length > 0) {
-          let hasNewOrphans = false;
-          for (const cat of categories) {
-            if (cat.name === ".keep" || cat.name === ".emptyFolderPlaceholder" || cat.name.startsWith(".")) continue;
-            const { data: files } = await supabase.storage.from(bucketName).list(`users/${folder}/documents/${cat.name}`);
-            if (files && files.length > 0) {
-              for (const file of files) {
-                if (file.name.endsWith(".meta.json") || file.name.startsWith(".")) continue;
-                const docId = file.name.replace(/\.[^/.]+$/, "");
-                const alreadyKnown = loadedDocs.some((d) => d.id === docId || d.fileName === file.name);
-                if (!alreadyKnown) {
-                  let recoveredDoc: DocumentRecord | null = null;
-                  try {
-                    const metaPath = `users/${folder}/documents/${cat.name}/${file.name}.meta.json`;
-                    const { data: metaBlob } = await supabase.storage.from(bucketName).download(metaPath);
-                    if (metaBlob) {
-                      recoveredDoc = JSON.parse(await metaBlob.text());
+          const categoryPromises = categories
+            .filter((cat) => !cat.name.startsWith("."))
+            .map(async (cat) => {
+              const { data: files } = await supabase.storage.from(bucketName).list(`users/${folder}/documents/${cat.name}`);
+              if (files && files.length > 0) {
+                for (const file of files) {
+                  if (file.name.endsWith(".meta.json") || file.name.startsWith(".")) continue;
+                  const docId = file.name.replace(/\.[^/.]+$/, "");
+                  const alreadyKnown = loadedDocs.some((d) => d.id === docId || d.fileName === file.name);
+                  if (!alreadyKnown) {
+                    let recoveredDoc: DocumentRecord | null = null;
+                    try {
+                      const metaPath = `users/${folder}/documents/${cat.name}/${file.name}.meta.json`;
+                      const { data: metaBlob } = await supabase.storage.from(bucketName).download(metaPath);
+                      if (metaBlob) {
+                        recoveredDoc = JSON.parse(await metaBlob.text());
+                      }
+                    } catch {}
+
+                    if (!recoveredDoc) {
+                      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+                      const mimeType = ext === "pdf" ? "application/pdf" : ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "application/octet-stream";
+                      const friendlyCat = cat.name.charAt(0).toUpperCase() + cat.name.slice(1);
+                      recoveredDoc = {
+                        id: docId,
+                        ownerId: userId,
+                        fileName: file.name,
+                        originalName: `${friendlyCat}_${docId.slice(0, 8)}.${ext}`,
+                        documentType: cat.name as any,
+                        title: `${friendlyCat} (${docId.slice(0, 8)})`,
+                        storagePath: `users/${folder}/documents/${cat.name}/${file.name}`,
+                        mimeType,
+                        fileSize: file.metadata?.size || 500000,
+                        verificationStatus: "Verified",
+                        processingStatus: "completed",
+                        aiProcessed: true,
+                        confidence: 0.95,
+                        skills: [],
+                        tags: [],
+                        uploadedAt: file.created_at || new Date().toISOString(),
+                        updatedAt: file.updated_at || new Date().toISOString(),
+                      };
                     }
-                  } catch {}
 
-                  if (!recoveredDoc) {
-                    const ext = file.name.split(".").pop()?.toLowerCase() || "";
-                    const mimeType = ext === "pdf" ? "application/pdf" : ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "application/octet-stream";
-                    const friendlyCat = cat.name.charAt(0).toUpperCase() + cat.name.slice(1);
-                    recoveredDoc = {
-                      id: docId,
-                      ownerId: userId,
-                      fileName: file.name,
-                      originalName: `${friendlyCat}_${docId.slice(0, 8)}.${ext}`,
-                      documentType: cat.name as any,
-                      title: `${friendlyCat} (${docId.slice(0, 8)})`,
-                      storagePath: `users/${folder}/documents/${cat.name}/${file.name}`,
-                      mimeType,
-                      fileSize: file.metadata?.size || 500000,
-                      verificationStatus: "Verified",
-                      processingStatus: "completed",
-                      aiProcessed: true,
-                      confidence: 0.95,
-                      skills: [],
-                      tags: [],
-                      uploadedAt: file.created_at || new Date().toISOString(),
-                      updatedAt: file.updated_at || new Date().toISOString(),
-                    };
-                  }
-
-                  if (recoveredDoc) {
-                    recoveredDoc.ownerId = userId;
-                    loadedDocs.push(recoveredDoc);
-                    this.documents.set(recoveredDoc.id, recoveredDoc);
-                    hasNewOrphans = true;
+                    if (recoveredDoc) {
+                      recoveredDoc.ownerId = userId;
+                      loadedDocs.push(recoveredDoc);
+                      this.documents.set(recoveredDoc.id, recoveredDoc);
+                      hasNewFiles = true;
+                    }
                   }
                 }
               }
-            }
-          }
+            });
 
-          if (hasNewOrphans) {
-            await this.saveUserManifest(userId);
-          }
+          await Promise.all(categoryPromises);
         }
-      } catch (scanErr: any) {
-        console.warn("[Supabase Storage] Notice scanning storage files:", scanErr.message);
       }
+
+      if (hasNewFiles) {
+        await this.saveUserManifest(userId);
+      }
+    } catch (scanErr: any) {
+      console.warn("[Supabase Storage] Notice scanning storage files:", scanErr.message);
     }
 
     return loadedDocs;

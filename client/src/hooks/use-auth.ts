@@ -47,6 +47,9 @@ export function useAuth() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData([api.auth.me.path], data);
+      queryClient.invalidateQueries({ queryKey: [api.documents.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.stats.get.path] });
+      queryClient.invalidateQueries({ queryKey: [api.auditLogs.list.path] });
       toast({ title: "Welcome back!", description: "Successfully logged in." });
     },
     onError: (error: Error) => {

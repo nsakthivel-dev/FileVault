@@ -41,6 +41,10 @@ export function useDocuments(filters?: { category?: string; status?: string; sea
       if (docs && docs.some((d: any) => d.processingStatus === "uploaded" || d.processingStatus === "processing")) {
         return 2000;
       }
+      // If documents list is empty right after login, quickly auto-poll (1.5s) so files appear instantly without manual refresh
+      if (docs && docs.length === 0 && (query.state.dataUpdateCount < 5)) {
+        return 1500;
+      }
       return false;
     },
   });

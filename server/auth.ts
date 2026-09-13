@@ -226,8 +226,12 @@ export function setupAuth(app: Express) {
 
   app.post("/api/login", passport.authenticate("local"), async (req, res) => {
     if (req.user) {
-      // Warm up user documents & audit logs in background immediately on login
-      storage.getDocuments(req.user.id).catch(() => {});
+      // Warm up user documents synchronously before completing login so documents appear instantly
+      try {
+        await storage.getDocuments(req.user.id);
+      } catch (err: any) {
+        console.warn("[Auth] Notice warming up user documents on login:", err?.message);
+      }
       storage.getAuditLogs(req.user.id).catch(() => {});
 
       await storage.createAuditLog({

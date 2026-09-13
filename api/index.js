@@ -296,12 +296,26 @@ var FirestoreStorage = class {
     try {
       const userFolder = await this.getUserFolder(userId);
       const bucketName = getSupabaseBucketName();
-      const userDocs = Array.from(this.documents.values()).filter((d) => d.ownerId === userId);
+      const userDocs = Array.from(this.documents.values()).filter(
+        (d) => d.ownerId === userId || d.ownerId === userFolder || d.ownerId && d.ownerId.includes(userFolder)
+      ).map((d) => ({ ...d, ownerId: userId }));
+      if (userDocs.length === 0) return;
       const manifestBuf = Buffer.from(JSON.stringify(userDocs, null, 2), "utf-8");
       await supabase.storage.from(bucketName).upload(`users/${userFolder}/.vault_manifest.json`, manifestBuf, {
         upsert: true,
         contentType: "application/json"
       });
+      const user = await this.getUser(userId);
+      if (user?.email) {
+        const altFolder = user.email.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+        if (altFolder !== userFolder) {
+          supabase.storage.from(bucketName).upload(`users/${altFolder}/.vault_manifest.json`, manifestBuf, {
+            upsert: true,
+            contentType: "application/json"
+          }).catch(() => {
+          });
+        }
+      }
       console.log(`[Supabase Storage] Synced ${userDocs.length} documents to manifest for user "${userFolder}"`);
     } catch (err) {
       console.warn("[Supabase Storage] Notice syncing user manifest:", err.message);
@@ -325,48 +339,53 @@ var FirestoreStorage = class {
           for (const doc of loadedDocs) {
             this.documents.set(doc.id, doc);
           }
+          return loadedDocs;
         }
       }
     } catch (err) {
       console.warn("[Supabase Storage] Notice reading vault manifest:", err.message);
     }
-    const foldersToScan = [userFolder];
-    if (loadedDocs.length === 0) {
-      try {
-        const { data: allFolders } = await supabase.storage.from(bucketName).list("users");
-        if (allFolders && allFolders.length > 0) {
-          for (const item of allFolders) {
-            if (!item.name.startsWith(".") && !foldersToScan.includes(item.name)) {
-              foldersToScan.push(item.name);
-            }
-          }
-        }
-      } catch {
-      }
-    }
-    for (const folder of foldersToScan) {
-      if (loadedDocs.length === 0 && folder !== userFolder) {
-        try {
-          const { data } = await supabase.storage.from(bucketName).download(`users/${folder}/.vault_manifest.json`);
-          if (data) {
-            const parsed = JSON.parse(await data.text());
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              for (const doc of parsed) {
-                const docWithUser = { ...doc, ownerId: userId };
-                loadedDocs.push(docWithUser);
-                this.documents.set(doc.id, docWithUser);
+    try {
+      const { data: allFolders } = await supabase.storage.from(bucketName).list("users");
+      if (allFolders && allFolders.length > 0) {
+        for (const item of allFolders) {
+          if (!item.name.startsWith(".") && item.name !== userFolder) {
+            try {
+              const { data } = await supabase.storage.from(bucketName).download(`users/${item.name}/.vault_manifest.json`);
+              if (data) {
+                const parsed = JSON.parse(await data.text());
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  loadedDocs = parsed.map((d) => ({ ...d, ownerId: userId }));
+                  for (const doc of loadedDocs) {
+                    this.documents.set(doc.id, doc);
+                  }
+                  this.saveUserManifest(userId).catch(() => {
+                  });
+                  return loadedDocs;
+                }
               }
+            } catch {
             }
           }
-        } catch {
         }
       }
-      try {
+    } catch {
+    }
+    try {
+      const { data: allFolders } = await supabase.storage.from(bucketName).list("users");
+      const foldersToScan = [userFolder];
+      if (allFolders) {
+        for (const item of allFolders) {
+          if (!item.name.startsWith(".") && !foldersToScan.includes(item.name)) {
+            foldersToScan.push(item.name);
+          }
+        }
+      }
+      let hasNewFiles = false;
+      for (const folder of foldersToScan) {
         const { data: categories } = await supabase.storage.from(bucketName).list(`users/${folder}/documents`);
         if (categories && categories.length > 0) {
-          let hasNewOrphans = false;
-          for (const cat of categories) {
-            if (cat.name === ".keep" || cat.name === ".emptyFolderPlaceholder" || cat.name.startsWith(".")) continue;
+          const categoryPromises = categories.filter((cat) => !cat.name.startsWith(".")).map(async (cat) => {
             const { data: files } = await supabase.storage.from(bucketName).list(`users/${folder}/documents/${cat.name}`);
             if (files && files.length > 0) {
               for (const file of files) {
@@ -411,19 +430,20 @@ var FirestoreStorage = class {
                     recoveredDoc.ownerId = userId;
                     loadedDocs.push(recoveredDoc);
                     this.documents.set(recoveredDoc.id, recoveredDoc);
-                    hasNewOrphans = true;
+                    hasNewFiles = true;
                   }
                 }
               }
             }
-          }
-          if (hasNewOrphans) {
-            await this.saveUserManifest(userId);
-          }
+          });
+          await Promise.all(categoryPromises);
         }
-      } catch (scanErr) {
-        console.warn("[Supabase Storage] Notice scanning storage files:", scanErr.message);
       }
+      if (hasNewFiles) {
+        await this.saveUserManifest(userId);
+      }
+    } catch (scanErr) {
+      console.warn("[Supabase Storage] Notice scanning storage files:", scanErr.message);
     }
     return loadedDocs;
   }
@@ -1578,8 +1598,11 @@ function setupAuth(app2) {
   });
   app2.post("/api/login", passport.authenticate("local"), async (req, res) => {
     if (req.user) {
-      storage.getDocuments(req.user.id).catch(() => {
-      });
+      try {
+        await storage.getDocuments(req.user.id);
+      } catch (err) {
+        console.warn("[Auth] Notice warming up user documents on login:", err?.message);
+      }
       storage.getAuditLogs(req.user.id).catch(() => {
       });
       await storage.createAuditLog({
