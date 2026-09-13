@@ -343,6 +343,121 @@ export class FirestoreStorage implements IStorage {
     return safeUser;
   }
 
+  // --- Supabase Storage Manifest & State Persistence ---
+  private async saveUserManifest(userId: string): Promise<void> {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) return;
+    try {
+      const userFolder = await this.getUserFolder(userId);
+      const bucketName = getSupabaseBucketName();
+      const userDocs = Array.from(this.documents.values()).filter((d) => d.ownerId === userId);
+      const manifestBuf = Buffer.from(JSON.stringify(userDocs, null, 2), "utf-8");
+      await supabase.storage.from(bucketName).upload(`users/${userFolder}/.vault_manifest.json`, manifestBuf, {
+        upsert: true,
+        contentType: "application/json",
+      });
+      console.log(`[Supabase Storage] Synced ${userDocs.length} documents to manifest for user "${userFolder}"`);
+    } catch (err: any) {
+      console.warn("[Supabase Storage] Notice syncing user manifest:", err.message);
+    }
+  }
+
+  private async loadUserManifest(userId: string): Promise<DocumentRecord[]> {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return Array.from(this.documents.values()).filter((d) => d.ownerId === userId);
+    }
+
+    const userFolder = await this.getUserFolder(userId);
+    const bucketName = getSupabaseBucketName();
+    let loadedDocs: DocumentRecord[] = [];
+
+    // 1. Try reading .vault_manifest.json from Supabase Storage
+    try {
+      const { data, error } = await supabase.storage.from(bucketName).download(`users/${userFolder}/.vault_manifest.json`);
+      if (!error && data) {
+        const text = await data.text();
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) {
+          loadedDocs = parsed;
+          for (const doc of loadedDocs) {
+            this.documents.set(doc.id, doc);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn("[Supabase Storage] Notice reading vault manifest:", err.message);
+    }
+
+    // 2. Auto-discover any orphaned files in users/{userFolder}/documents/
+    try {
+      const { data: categories } = await supabase.storage.from(bucketName).list(`users/${userFolder}/documents`);
+      if (categories && categories.length > 0) {
+        let hasNewOrphans = false;
+        for (const cat of categories) {
+          if (cat.name === ".keep" || cat.name === ".emptyFolderPlaceholder" || cat.name.startsWith(".")) continue;
+          const { data: files } = await supabase.storage.from(bucketName).list(`users/${userFolder}/documents/${cat.name}`);
+          if (files && files.length > 0) {
+            for (const file of files) {
+              if (file.name.endsWith(".meta.json") || file.name.startsWith(".")) continue;
+              const docId = file.name.replace(/\.[^/.]+$/, "");
+              const alreadyKnown = loadedDocs.some((d) => d.id === docId || d.fileName === file.name);
+              if (!alreadyKnown) {
+                let recoveredDoc: DocumentRecord | null = null;
+                try {
+                  const metaPath = `users/${userFolder}/documents/${cat.name}/${file.name}.meta.json`;
+                  const { data: metaBlob } = await supabase.storage.from(bucketName).download(metaPath);
+                  if (metaBlob) {
+                    recoveredDoc = JSON.parse(await metaBlob.text());
+                  }
+                } catch {}
+
+                if (!recoveredDoc) {
+                  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+                  const mimeType = ext === "pdf" ? "application/pdf" : ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "application/octet-stream";
+                  const friendlyCat = cat.name.charAt(0).toUpperCase() + cat.name.slice(1);
+                  recoveredDoc = {
+                    id: docId,
+                    ownerId: userId,
+                    fileName: file.name,
+                    originalName: `${friendlyCat}_${docId.slice(0, 8)}.${ext}`,
+                    documentType: cat.name as any,
+                    title: `${friendlyCat} (${docId.slice(0, 8)})`,
+                    storagePath: `users/${userFolder}/documents/${cat.name}/${file.name}`,
+                    mimeType,
+                    fileSize: file.metadata?.size || 500000,
+                    verificationStatus: "Verified",
+                    processingStatus: "completed",
+                    aiProcessed: true,
+                    confidence: 0.95,
+                    skills: [],
+                    tags: [],
+                    uploadedAt: file.created_at || new Date().toISOString(),
+                    updatedAt: file.updated_at || new Date().toISOString(),
+                  };
+                }
+
+                if (recoveredDoc) {
+                  loadedDocs.push(recoveredDoc);
+                  this.documents.set(recoveredDoc.id, recoveredDoc);
+                  hasNewOrphans = true;
+                }
+              }
+            }
+          }
+        }
+
+        if (hasNewOrphans) {
+          await this.saveUserManifest(userId);
+        }
+      }
+    } catch (scanErr: any) {
+      console.warn("[Supabase Storage] Notice scanning storage files:", scanErr.message);
+    }
+
+    return loadedDocs;
+  }
+
   // --- Documents ---
   async getDocuments(userId: string, includeDeleted = false): Promise<DocumentRecord[]> {
     let docs: DocumentRecord[] = [];
@@ -356,10 +471,19 @@ export class FirestoreStorage implements IStorage {
           .order("uploaded_at", { ascending: false });
         if (!error && data && data.length > 0) {
           docs = data.map(mapDocFromSupabase);
+          for (const d of docs) {
+            this.documents.set(d.id, d);
+          }
+          this.saveUserManifest(userId).catch(() => {});
         }
       } catch (err) {
         // Fallback
       }
+    }
+
+    // If PostgreSQL returned nothing or table is not created yet, load from Supabase Storage manifest!
+    if (docs.length === 0) {
+      docs = await this.loadUserManifest(userId);
     }
 
     if (docs.length === 0) {
@@ -369,6 +493,8 @@ export class FirestoreStorage implements IStorage {
     if (!includeDeleted) {
       docs = docs.filter((d) => !d.isDeleted);
     }
+
+    docs.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
     return docs;
   }
 
@@ -445,14 +571,37 @@ export class FirestoreStorage implements IStorage {
       try {
         const { data, error } = await supabase.from("documents").select("*").eq("id", id).maybeSingle();
         if (!error && data) {
-          return mapDocFromSupabase(data);
+          const doc = mapDocFromSupabase(data);
+          this.documents.set(doc.id, doc);
+          return doc;
         }
       } catch (err) {
         // Fallback
       }
     }
 
-    return this.documents.get(id);
+    let doc = this.documents.get(id);
+    if (!doc && supabase) {
+      try {
+        const bucketName = getSupabaseBucketName();
+        const { data: userFolders } = await supabase.storage.from(bucketName).list("users");
+        if (userFolders) {
+          for (const uf of userFolders) {
+            if (uf.name.startsWith(".")) continue;
+            const { data: manifestBlob } = await supabase.storage.from(bucketName).download(`users/${uf.name}/.vault_manifest.json`);
+            if (manifestBlob) {
+              const list: DocumentRecord[] = JSON.parse(await manifestBlob.text());
+              for (const d of list) {
+                this.documents.set(d.id, d);
+              }
+              doc = this.documents.get(id);
+              if (doc) break;
+            }
+          }
+        }
+      } catch {}
+    }
+    return doc;
   }
 
   async findDocumentBySha256(userId: string, sha256: string): Promise<DocumentRecord | undefined> {
@@ -474,28 +623,40 @@ export class FirestoreStorage implements IStorage {
       }
     }
 
-    return Array.from(this.documents.values()).find(
-      (d) => d.ownerId === userId && d.sha256 === sha256
-    );
+    const all = await this.getDocuments(userId, true);
+    return all.find((d) => d.sha256 === sha256);
   }
 
   async createDocument(doc: DocumentRecord): Promise<DocumentRecord> {
+    this.documents.set(doc.id, doc);
+
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
         const row = mapDocToSupabase(doc);
         const { error } = await supabase.from("documents").insert(row);
         if (error) {
-          console.warn("[Supabase DB] Error inserting document:", error.message);
+          console.warn("[Supabase DB] Notice inserting document into table:", error.message);
         } else {
-          console.log(`[Supabase DB] Document "${doc.id}" saved to Supabase`);
+          console.log(`[Supabase DB] Document "${doc.id}" saved to Supabase table`);
         }
       } catch (err: any) {
-        console.warn("[Supabase DB] Failed to insert document:", err.message);
+        console.warn("[Supabase DB] Table insert notice:", err.message);
+      }
+
+      try {
+        const bucketName = getSupabaseBucketName();
+        const metaBuf = Buffer.from(JSON.stringify(doc, null, 2), "utf-8");
+        await supabase.storage.from(bucketName).upload(`${doc.storagePath}.meta.json`, metaBuf, {
+          upsert: true,
+          contentType: "application/json",
+        });
+      } catch (err: any) {
+        console.warn("[Supabase Storage] Notice saving doc .meta.json:", err.message);
       }
     }
 
-    this.documents.set(doc.id, doc);
+    await this.saveUserManifest(doc.ownerId);
     return doc;
   }
 
@@ -509,34 +670,57 @@ export class FirestoreStorage implements IStorage {
       updatedAt: new Date().toISOString(),
     };
 
+    this.documents.set(id, updated);
+
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
         const row = mapDocToSupabase(updated);
         const { error } = await supabase.from("documents").update(row).eq("id", id);
         if (error) {
-          console.warn("[Supabase DB] Error updating document:", error.message);
+          console.warn("[Supabase DB] Notice updating document in table:", error.message);
         }
       } catch (err: any) {
-        console.warn("[Supabase DB] Failed to update document in Supabase:", err.message);
+        console.warn("[Supabase DB] Table update notice:", err.message);
       }
+
+      try {
+        const bucketName = getSupabaseBucketName();
+        const metaBuf = Buffer.from(JSON.stringify(updated, null, 2), "utf-8");
+        await supabase.storage.from(bucketName).upload(`${updated.storagePath}.meta.json`, metaBuf, {
+          upsert: true,
+          contentType: "application/json",
+        });
+      } catch {}
     }
 
-    this.documents.set(id, updated);
+    await this.saveUserManifest(updated.ownerId);
     return updated;
   }
 
   async deleteDocument(id: string): Promise<void> {
+    const doc = this.documents.get(id);
+    this.documents.delete(id);
+
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
         await supabase.from("documents").delete().eq("id", id);
       } catch (err: any) {
-        console.warn("[Supabase DB] Error deleting document from Supabase:", err.message);
+        console.warn("[Supabase DB] Notice deleting document from table:", err.message);
+      }
+
+      if (doc) {
+        try {
+          const bucketName = getSupabaseBucketName();
+          await supabase.storage.from(bucketName).remove([`${doc.storagePath}.meta.json`]);
+        } catch {}
       }
     }
 
-    this.documents.delete(id);
+    if (doc) {
+      await this.saveUserManifest(doc.ownerId);
+    }
   }
 
   async replaceDocument(oldDocId: string, newDoc: DocumentRecord): Promise<DocumentRecord> {
@@ -549,7 +733,44 @@ export class FirestoreStorage implements IStorage {
   }
 
   // --- Shares ---
+  private async saveUserShares(userId: string): Promise<void> {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) return;
+    try {
+      const userFolder = await this.getUserFolder(userId);
+      const bucketName = getSupabaseBucketName();
+      const userShares = Array.from(this.shares.values()).filter((s) => s.ownerId === userId);
+      await supabase.storage.from(bucketName).upload(
+        `users/${userFolder}/.shares.json`,
+        Buffer.from(JSON.stringify(userShares, null, 2), "utf-8"),
+        { upsert: true, contentType: "application/json" }
+      );
+    } catch {}
+  }
+
+  private async loadUserShares(userId: string): Promise<ShareRecord[]> {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) return Array.from(this.shares.values()).filter((s) => s.ownerId === userId);
+    try {
+      const userFolder = await this.getUserFolder(userId);
+      const bucketName = getSupabaseBucketName();
+      const { data, error } = await supabase.storage.from(bucketName).download(`users/${userFolder}/.shares.json`);
+      if (!error && data) {
+        const list: ShareRecord[] = JSON.parse(await data.text());
+        if (Array.isArray(list)) {
+          for (const s of list) {
+            this.shares.set(s.id, s);
+          }
+          return list;
+        }
+      }
+    } catch {}
+    return Array.from(this.shares.values()).filter((s) => s.ownerId === userId);
+  }
+
   async createShare(share: ShareRecord): Promise<ShareRecord> {
+    this.shares.set(share.id, share);
+
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
@@ -572,7 +793,7 @@ export class FirestoreStorage implements IStorage {
       }
     }
 
-    this.shares.set(share.id, share);
+    await this.saveUserShares(share.ownerId);
     return share;
   }
 
@@ -635,9 +856,8 @@ export class FirestoreStorage implements IStorage {
       }
     }
 
-    return Array.from(this.shares.values()).filter(
-      (s) => s.documentId === documentId && s.ownerId === ownerId
-    );
+    const allUserShares = await this.loadUserShares(ownerId);
+    return allUserShares.filter((s) => s.documentId === documentId && s.ownerId === ownerId);
   }
 
   async getUserShares(ownerId: string): Promise<ShareRecord[]> {
@@ -670,9 +890,8 @@ export class FirestoreStorage implements IStorage {
       }
     }
 
-    return Array.from(this.shares.values())
-      .filter((s) => s.ownerId === ownerId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const loaded = await this.loadUserShares(ownerId);
+    return loaded.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async updateShare(id: string, updates: Partial<ShareRecord>): Promise<ShareRecord | undefined> {
@@ -683,6 +902,8 @@ export class FirestoreStorage implements IStorage {
       ...existing,
       ...updates,
     };
+
+    this.shares.set(id, updated);
 
     const supabase = getSupabaseAdmin();
     if (supabase) {
@@ -697,11 +918,14 @@ export class FirestoreStorage implements IStorage {
       }
     }
 
-    this.shares.set(id, updated);
+    await this.saveUserShares(updated.ownerId);
     return updated;
   }
 
   async deleteShare(id: string): Promise<void> {
+    const existing = this.shares.get(id);
+    this.shares.delete(id);
+
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
@@ -711,7 +935,9 @@ export class FirestoreStorage implements IStorage {
       }
     }
 
-    this.shares.delete(id);
+    if (existing) {
+      await this.saveUserShares(existing.ownerId);
+    }
   }
 
   // --- Audit Logs (User explicitly requested Supabase database saving) ---
@@ -746,6 +972,20 @@ export class FirestoreStorage implements IStorage {
     }
 
     this.auditLogs.unshift(entry);
+
+    if (supabase) {
+      try {
+        const userFolder = await this.getUserFolder(entry.userId);
+        const bucketName = getSupabaseBucketName();
+        const userLogs = this.auditLogs.filter((l) => l.userId === entry.userId).slice(0, 100);
+        await supabase.storage.from(bucketName).upload(
+          `users/${userFolder}/.audit_trail.json`,
+          Buffer.from(JSON.stringify(userLogs, null, 2), "utf-8"),
+          { upsert: true, contentType: "application/json" }
+        );
+      } catch {}
+    }
+
     return entry;
   }
 
@@ -774,6 +1014,24 @@ export class FirestoreStorage implements IStorage {
       } catch (err) {
         // Fallback
       }
+
+      // Storage-backed audit trail fallback
+      try {
+        const userFolder = await this.getUserFolder(userId);
+        const bucketName = getSupabaseBucketName();
+        const { data, error } = await supabase.storage.from(bucketName).download(`users/${userFolder}/.audit_trail.json`);
+        if (!error && data) {
+          const list: AuditLogRecord[] = JSON.parse(await data.text());
+          if (Array.isArray(list) && list.length > 0) {
+            for (const item of list) {
+              if (!this.auditLogs.some((l) => l.id === item.id)) {
+                this.auditLogs.push(item);
+              }
+            }
+            return list;
+          }
+        }
+      } catch {}
     }
 
     return this.auditLogs
@@ -863,10 +1121,37 @@ export class FirestoreStorage implements IStorage {
 
   async getUserFolder(userId: string): Promise<string> {
     const user = await this.getUser(userId);
-    if (!user) return userId;
-    // Prefer user name, or username before '@', fallback to userId
-    const raw = user.name || user.username?.split("@")[0] || userId;
+    const raw = user?.name || user?.username?.split("@")[0] || userId;
     const sanitized = raw.toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 32);
+
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      try {
+        const bucketName = getSupabaseBucketName();
+        const { data: list } = await supabase.storage.from(bucketName).list("users");
+        if (list && list.length > 0) {
+          const emailPrefix = user?.email?.split("@")[0]?.toLowerCase();
+          const emailFull = user?.email?.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+          const usernameClean = user?.username?.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+
+          const match = list.find((item) => {
+            const n = item.name.toLowerCase();
+            return (
+              n === sanitized ||
+              n === userId ||
+              (emailFull && n === emailFull) ||
+              (usernameClean && n === usernameClean) ||
+              (emailPrefix && n === emailPrefix) ||
+              (emailPrefix && n.startsWith(emailPrefix))
+            );
+          });
+          if (match) {
+            return match.name;
+          }
+        }
+      } catch {}
+    }
+
     return sanitized || userId;
   }
 

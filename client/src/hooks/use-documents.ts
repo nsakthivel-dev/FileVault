@@ -20,6 +20,7 @@ export function useDocuments(filters?: { category?: string; status?: string; sea
       if (!res.ok) throw new Error("Failed to fetch documents");
       return await res.json();
     },
+    refetchOnWindowFocus: true,
     refetchInterval: (query) => {
       const docs = query.state.data;
       if (docs && docs.some((d: any) => d.processingStatus === "uploaded" || d.processingStatus === "processing")) {
@@ -83,12 +84,13 @@ export function useUploadDocument() {
       }
       return await res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.documents.list.path] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [api.documents.list.path] });
+      await queryClient.refetchQueries({ queryKey: [api.documents.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.stats.get.path] });
       queryClient.invalidateQueries({ queryKey: [api.auditLogs.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.notifications.list.path] });
-      toast({ title: "Upload Complete", description: "Document stored. AI intelligence processing started." });
+      toast({ title: "Upload Complete", description: "Document stored in vault and secured." });
     },
     onError: (error: Error) => {
       toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
@@ -117,8 +119,9 @@ export function useBatchUpload() {
       }
       return await res.json();
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: [api.documents.list.path] });
+    onSuccess: async (data: any) => {
+      await queryClient.invalidateQueries({ queryKey: [api.documents.list.path] });
+      await queryClient.refetchQueries({ queryKey: [api.documents.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.stats.get.path] });
       queryClient.invalidateQueries({ queryKey: [api.auditLogs.list.path] });
       const count = Array.isArray(data) ? data.length : (data.successful ?? data.total ?? data.documents?.length ?? 1);
