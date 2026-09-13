@@ -45,6 +45,7 @@ function getSupabaseAdmin() {
 // server/storage.ts
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { randomUUID } from "crypto";
 function mapDocToSupabase(doc) {
   return {
@@ -140,8 +141,13 @@ var FirestoreStorage = class {
   notifications = [];
   storageBaseDir;
   constructor() {
-    this.storageBaseDir = path.join(process.cwd(), "uploads", "cloud_storage");
-    fs.mkdirSync(this.storageBaseDir, { recursive: true });
+    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    this.storageBaseDir = isServerless ? path.join(os.tmpdir(), "filevault_storage") : path.join(process.cwd(), "uploads", "cloud_storage");
+    try {
+      fs.mkdirSync(this.storageBaseDir, { recursive: true });
+    } catch (err) {
+      console.warn("[Storage] Notice initializing local storage directory:", err.message);
+    }
   }
   // --- Users ---
   async getUser(id) {
@@ -733,9 +739,9 @@ var FirestoreStorage = class {
         console.warn(`[Supabase Storage] Notice initializing user folder "${cleanFolder}":`, err.message);
       }
     }
-    const userLocalDir = path.join(this.storageBaseDir, "users", cleanFolder, "documents");
-    fs.mkdirSync(userLocalDir, { recursive: true });
     try {
+      const userLocalDir = path.join(this.storageBaseDir, "users", cleanFolder, "documents");
+      fs.mkdirSync(userLocalDir, { recursive: true });
       fs.writeFileSync(path.join(this.storageBaseDir, "users", cleanFolder, ".keep"), "");
     } catch {
     }
@@ -774,10 +780,14 @@ var FirestoreStorage = class {
         console.warn("[Supabase Storage] Failed to upload to Supabase bucket:", err.message);
       }
     }
-    const targetDir = path.join(this.storageBaseDir, ...localSubDir.slice(0, -1));
-    fs.mkdirSync(targetDir, { recursive: true });
-    const localFsPath = path.join(this.storageBaseDir, ...localSubDir);
-    fs.writeFileSync(localFsPath, buffer);
+    try {
+      const targetDir = path.join(this.storageBaseDir, ...localSubDir.slice(0, -1));
+      fs.mkdirSync(targetDir, { recursive: true });
+      const localFsPath = path.join(this.storageBaseDir, ...localSubDir);
+      fs.writeFileSync(localFsPath, buffer);
+    } catch (err) {
+      console.warn("[Storage] Notice: local disk mirror write skipped:", err.message);
+    }
     return logicalStoragePath;
   }
   async moveFile(oldStoragePath, newStoragePath) {
