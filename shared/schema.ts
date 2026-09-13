@@ -239,6 +239,7 @@ export interface ShareRecord {
   allowedFields?: string[];
   permission?: "view" | "download" | "both";
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface AuditLogRecord {
@@ -247,9 +248,10 @@ export interface AuditLogRecord {
   action: AuditAction;
   documentId?: string | null;
   documentName?: string | null;
-  details?: string | null;
+  details?: any;
   timestamp: string;
   status: "SUCCESS" | "FAILURE" | "WARNING";
+  ipAddress?: string | null;
 }
 
 export interface NotificationRecord {

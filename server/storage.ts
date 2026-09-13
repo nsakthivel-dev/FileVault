@@ -61,6 +61,26 @@ export interface IStorage {
 }
 
 // Helpers to map between TS DocumentRecord (camelCase) and Postgres/Supabase (snake_case)
+function toDateOnly(val?: string | null): string | null {
+  if (!val || typeof val !== "string") return null;
+  const trimmed = val.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const d = new Date(trimmed);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().split("T")[0];
+}
+
+function safeJson(val: any): any {
+  if (!val) return null;
+  if (typeof val === "object") return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return { raw: val };
+  }
+}
+
 function mapDocToSupabase(doc: DocumentRecord) {
   return {
     id: doc.id,
@@ -72,30 +92,30 @@ function mapDocToSupabase(doc: DocumentRecord) {
     title: doc.title || null,
     person_name: doc.personName || null,
     organization: doc.organization || null,
+    recipient_name: doc.recipientName || null,
+    institution: doc.institution || null,
+    certificate_number: doc.certificateNumber || null,
+    description: doc.description || null,
+    achievement: doc.achievement || null,
+    rank: doc.rank || null,
     storage_path: doc.storagePath,
     mime_type: doc.mimeType,
     file_size: doc.fileSize,
     sha256: doc.sha256 || null,
-    issue_date: doc.issueDate || null,
-    expiry_date: doc.expiryDate || null,
-    achievement: doc.achievement || null,
-    rank: doc.rank || null,
-    skills: doc.skills || [],
-    tags: doc.tags || [],
+    issue_date: toDateOnly(doc.issueDate),
+    expiry_date: toDateOnly(doc.expiryDate),
+    skills: Array.isArray(doc.skills) ? doc.skills : [],
+    tags: Array.isArray(doc.tags) ? doc.tags : [],
     confidence: doc.confidence || 0,
-    uncertain_fields: doc.uncertainFields || [],
+    uncertain_fields: Array.isArray(doc.uncertainFields) ? doc.uncertainFields : [],
     verification_status: doc.verificationStatus || "Uploaded",
     processing_status: doc.processingStatus || "uploaded",
     duplicate_status: doc.duplicateStatus || "unique",
     duplicate_of_id: doc.duplicateOfId || null,
     ai_processed: Boolean(doc.aiProcessed),
-    ai_raw_response: doc.aiRawResponse || null,
-    education_details: doc.educationDetails || null,
-    employment_details: doc.employmentDetails || null,
-    recipient_name: doc.recipientName || null,
-    institution: doc.institution || null,
-    certificate_number: doc.certificateNumber || null,
-    description: doc.description || null,
+    ai_raw_response: safeJson(doc.aiRawResponse),
+    education_details: safeJson(doc.educationDetails),
+    employment_details: safeJson(doc.employmentDetails),
     is_deleted: Boolean(doc.isDeleted),
     deleted_at: doc.deletedAt || null,
     is_pinned: Boolean(doc.isPinned),
@@ -116,14 +136,18 @@ function mapDocFromSupabase(row: any): DocumentRecord {
     title: row.title,
     personName: row.person_name,
     organization: row.organization,
+    recipientName: row.recipient_name,
+    institution: row.institution,
+    certificateNumber: row.certificate_number,
+    description: row.description,
+    achievement: row.achievement,
+    rank: row.rank,
     storagePath: row.storage_path,
     mimeType: row.mime_type,
     fileSize: Number(row.file_size),
     sha256: row.sha256,
     issueDate: row.issue_date,
     expiryDate: row.expiry_date,
-    achievement: row.achievement,
-    rank: row.rank,
     skills: Array.isArray(row.skills) ? row.skills : [],
     tags: Array.isArray(row.tags) ? row.tags : [],
     confidence: Number(row.confidence || 0),
@@ -136,10 +160,6 @@ function mapDocFromSupabase(row: any): DocumentRecord {
     aiRawResponse: row.ai_raw_response,
     educationDetails: row.education_details,
     employmentDetails: row.employment_details,
-    recipientName: row.recipient_name,
-    institution: row.institution,
-    certificateNumber: row.certificate_number,
-    description: row.description,
     isDeleted: Boolean(row.is_deleted),
     deletedAt: row.deleted_at || null,
     isPinned: Boolean(row.is_pinned),
@@ -551,6 +571,7 @@ export class FirestoreStorage implements IStorage {
       docs = await this.loadUserManifest(userId);
       if (docs.length > 0 && supabase) {
         try {
+          void this.ensureUserRecordInSupabase(userId);
           const rows = docs.map(mapDocToSupabase);
           void supabase.from("documents").upsert(rows).then(() => {}, () => {});
         } catch {}
@@ -726,6 +747,7 @@ export class FirestoreStorage implements IStorage {
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
+        await this.ensureUserRecordInSupabase(doc.ownerId);
         const row = mapDocToSupabase(doc);
         const { error } = await supabase.from("documents").insert(row);
         if (error) {
@@ -861,12 +883,31 @@ export class FirestoreStorage implements IStorage {
     return Array.from(this.shares.values()).filter((s) => s.ownerId === userId);
   }
 
+  private async ensureUserRecordInSupabase(userId: string): Promise<void> {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) return;
+    try {
+      const user = await this.getUser(userId);
+      if (user) {
+        void supabase.from("users").upsert({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          name: user.name || user.username,
+          profile_image: user.profileImage || null,
+          updated_at: new Date().toISOString(),
+        }).then(() => {}, () => {});
+      }
+    } catch {}
+  }
+
   async createShare(share: ShareRecord): Promise<ShareRecord> {
     this.shares.set(share.id, share);
 
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
+        await this.ensureUserRecordInSupabase(share.ownerId);
         await supabase.from("shares").insert({
           id: share.id,
           document_id: share.documentId,
@@ -880,6 +921,7 @@ export class FirestoreStorage implements IStorage {
           allowed_fields: share.allowedFields,
           permission: share.permission || "both",
           created_at: share.createdAt,
+          updated_at: new Date().toISOString(),
         });
       } catch (err: any) {
         console.warn("[Supabase DB] Error inserting share:", err.message);
@@ -909,6 +951,7 @@ export class FirestoreStorage implements IStorage {
             allowedFields: data.allowed_fields,
             permission: data.permission || "both",
             createdAt: data.created_at,
+            updatedAt: data.updated_at || data.created_at,
           };
         }
       } catch (err) {
@@ -968,6 +1011,7 @@ export class FirestoreStorage implements IStorage {
             allowedFields: d.allowed_fields,
             permission: d.permission || "both",
             createdAt: d.created_at,
+            updatedAt: d.updated_at || d.created_at,
           }));
         }
       } catch (err) {
@@ -1002,6 +1046,7 @@ export class FirestoreStorage implements IStorage {
             allowedFields: d.allowed_fields,
             permission: d.permission || "both",
             createdAt: d.created_at,
+            updatedAt: d.updated_at || d.created_at,
           }));
         }
       } catch (err) {
@@ -1020,6 +1065,7 @@ export class FirestoreStorage implements IStorage {
     const updated: ShareRecord = {
       ...existing,
       ...updates,
+      updatedAt: new Date().toISOString(),
     };
 
     this.shares.set(id, updated);
@@ -1031,6 +1077,7 @@ export class FirestoreStorage implements IStorage {
           status: updated.status,
           access_count: updated.accessCount,
           expires_at: updated.expiresAt,
+          updated_at: new Date().toISOString(),
         }).eq("id", id);
       } catch (err: any) {
         console.warn("[Supabase DB] Error updating share:", err.message);
@@ -1070,16 +1117,21 @@ export class FirestoreStorage implements IStorage {
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
-        const { error } = await supabase.from("audit_logs").insert({
-          id: entry.id,
+        await this.ensureUserRecordInSupabase(entry.userId);
+        const logPayload: any = {
           user_id: entry.userId,
           action: entry.action,
           document_id: entry.documentId || null,
           document_name: entry.documentName || null,
-          details: entry.details || null,
+          details: typeof entry.details === "object" ? entry.details : (entry.details ? { message: entry.details } : null),
           timestamp: entry.timestamp,
           status: entry.status || "SUCCESS",
-        });
+          ip_address: (entry as any).ipAddress || null,
+        };
+        const { data, error } = await supabase.from("audit_logs").insert(logPayload).select().maybeSingle();
+        if (data && data.id) {
+          entry.id = String(data.id);
+        }
         if (error) {
           console.warn("[Supabase DB] Error saving audit log:", error.message);
         } else {
@@ -1120,14 +1172,15 @@ export class FirestoreStorage implements IStorage {
           .limit(100);
         if (!error && data && data.length > 0) {
           return data.map((d: any) => ({
-            id: d.id,
+            id: String(d.id),
             userId: d.user_id,
             action: d.action,
             documentId: d.document_id,
             documentName: d.document_name,
-            details: d.details,
+            details: typeof d.details === "object" ? JSON.stringify(d.details) : d.details,
             timestamp: d.timestamp,
             status: d.status,
+            ipAddress: d.ip_address,
           }));
         }
       } catch (err) {
