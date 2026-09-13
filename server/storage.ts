@@ -378,8 +378,8 @@ export class FirestoreStorage implements IStorage {
       if (!error && data) {
         const text = await data.text();
         const parsed = JSON.parse(text);
-        if (Array.isArray(parsed)) {
-          loadedDocs = parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loadedDocs = parsed.map((d: DocumentRecord) => ({ ...d, ownerId: userId }));
           for (const doc of loadedDocs) {
             this.documents.set(doc.id, doc);
           }
@@ -389,70 +389,105 @@ export class FirestoreStorage implements IStorage {
       console.warn("[Supabase Storage] Notice reading vault manifest:", err.message);
     }
 
-    // 2. Auto-discover any orphaned files in users/{userFolder}/documents/
-    try {
-      const { data: categories } = await supabase.storage.from(bucketName).list(`users/${userFolder}/documents`);
-      if (categories && categories.length > 0) {
-        let hasNewOrphans = false;
-        for (const cat of categories) {
-          if (cat.name === ".keep" || cat.name === ".emptyFolderPlaceholder" || cat.name.startsWith(".")) continue;
-          const { data: files } = await supabase.storage.from(bucketName).list(`users/${userFolder}/documents/${cat.name}`);
-          if (files && files.length > 0) {
-            for (const file of files) {
-              if (file.name.endsWith(".meta.json") || file.name.startsWith(".")) continue;
-              const docId = file.name.replace(/\.[^/.]+$/, "");
-              const alreadyKnown = loadedDocs.some((d) => d.id === docId || d.fileName === file.name);
-              if (!alreadyKnown) {
-                let recoveredDoc: DocumentRecord | null = null;
-                try {
-                  const metaPath = `users/${userFolder}/documents/${cat.name}/${file.name}.meta.json`;
-                  const { data: metaBlob } = await supabase.storage.from(bucketName).download(metaPath);
-                  if (metaBlob) {
-                    recoveredDoc = JSON.parse(await metaBlob.text());
+    // 2. Discover files in userFolder or across all user folders if empty
+    const foldersToScan = [userFolder];
+    if (loadedDocs.length === 0) {
+      try {
+        const { data: allFolders } = await supabase.storage.from(bucketName).list("users");
+        if (allFolders && allFolders.length > 0) {
+          for (const item of allFolders) {
+            if (!item.name.startsWith(".") && !foldersToScan.includes(item.name)) {
+              foldersToScan.push(item.name);
+            }
+          }
+        }
+      } catch {}
+    }
+
+    for (const folder of foldersToScan) {
+      // Check manifest in this folder if loadedDocs is still empty
+      if (loadedDocs.length === 0 && folder !== userFolder) {
+        try {
+          const { data } = await supabase.storage.from(bucketName).download(`users/${folder}/.vault_manifest.json`);
+          if (data) {
+            const parsed = JSON.parse(await data.text());
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              for (const doc of parsed) {
+                const docWithUser = { ...doc, ownerId: userId };
+                loadedDocs.push(docWithUser);
+                this.documents.set(doc.id, docWithUser);
+              }
+            }
+          }
+        } catch {}
+      }
+
+      // Scan physical files in users/{folder}/documents/
+      try {
+        const { data: categories } = await supabase.storage.from(bucketName).list(`users/${folder}/documents`);
+        if (categories && categories.length > 0) {
+          let hasNewOrphans = false;
+          for (const cat of categories) {
+            if (cat.name === ".keep" || cat.name === ".emptyFolderPlaceholder" || cat.name.startsWith(".")) continue;
+            const { data: files } = await supabase.storage.from(bucketName).list(`users/${folder}/documents/${cat.name}`);
+            if (files && files.length > 0) {
+              for (const file of files) {
+                if (file.name.endsWith(".meta.json") || file.name.startsWith(".")) continue;
+                const docId = file.name.replace(/\.[^/.]+$/, "");
+                const alreadyKnown = loadedDocs.some((d) => d.id === docId || d.fileName === file.name);
+                if (!alreadyKnown) {
+                  let recoveredDoc: DocumentRecord | null = null;
+                  try {
+                    const metaPath = `users/${folder}/documents/${cat.name}/${file.name}.meta.json`;
+                    const { data: metaBlob } = await supabase.storage.from(bucketName).download(metaPath);
+                    if (metaBlob) {
+                      recoveredDoc = JSON.parse(await metaBlob.text());
+                    }
+                  } catch {}
+
+                  if (!recoveredDoc) {
+                    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+                    const mimeType = ext === "pdf" ? "application/pdf" : ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "application/octet-stream";
+                    const friendlyCat = cat.name.charAt(0).toUpperCase() + cat.name.slice(1);
+                    recoveredDoc = {
+                      id: docId,
+                      ownerId: userId,
+                      fileName: file.name,
+                      originalName: `${friendlyCat}_${docId.slice(0, 8)}.${ext}`,
+                      documentType: cat.name as any,
+                      title: `${friendlyCat} (${docId.slice(0, 8)})`,
+                      storagePath: `users/${folder}/documents/${cat.name}/${file.name}`,
+                      mimeType,
+                      fileSize: file.metadata?.size || 500000,
+                      verificationStatus: "Verified",
+                      processingStatus: "completed",
+                      aiProcessed: true,
+                      confidence: 0.95,
+                      skills: [],
+                      tags: [],
+                      uploadedAt: file.created_at || new Date().toISOString(),
+                      updatedAt: file.updated_at || new Date().toISOString(),
+                    };
                   }
-                } catch {}
 
-                if (!recoveredDoc) {
-                  const ext = file.name.split(".").pop()?.toLowerCase() || "";
-                  const mimeType = ext === "pdf" ? "application/pdf" : ext === "png" ? "image/png" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "application/octet-stream";
-                  const friendlyCat = cat.name.charAt(0).toUpperCase() + cat.name.slice(1);
-                  recoveredDoc = {
-                    id: docId,
-                    ownerId: userId,
-                    fileName: file.name,
-                    originalName: `${friendlyCat}_${docId.slice(0, 8)}.${ext}`,
-                    documentType: cat.name as any,
-                    title: `${friendlyCat} (${docId.slice(0, 8)})`,
-                    storagePath: `users/${userFolder}/documents/${cat.name}/${file.name}`,
-                    mimeType,
-                    fileSize: file.metadata?.size || 500000,
-                    verificationStatus: "Verified",
-                    processingStatus: "completed",
-                    aiProcessed: true,
-                    confidence: 0.95,
-                    skills: [],
-                    tags: [],
-                    uploadedAt: file.created_at || new Date().toISOString(),
-                    updatedAt: file.updated_at || new Date().toISOString(),
-                  };
-                }
-
-                if (recoveredDoc) {
-                  loadedDocs.push(recoveredDoc);
-                  this.documents.set(recoveredDoc.id, recoveredDoc);
-                  hasNewOrphans = true;
+                  if (recoveredDoc) {
+                    recoveredDoc.ownerId = userId;
+                    loadedDocs.push(recoveredDoc);
+                    this.documents.set(recoveredDoc.id, recoveredDoc);
+                    hasNewOrphans = true;
+                  }
                 }
               }
             }
           }
-        }
 
-        if (hasNewOrphans) {
-          await this.saveUserManifest(userId);
+          if (hasNewOrphans) {
+            await this.saveUserManifest(userId);
+          }
         }
+      } catch (scanErr: any) {
+        console.warn("[Supabase Storage] Notice scanning storage files:", scanErr.message);
       }
-    } catch (scanErr: any) {
-      console.warn("[Supabase Storage] Notice scanning storage files:", scanErr.message);
     }
 
     return loadedDocs;
@@ -1120,11 +1155,30 @@ export class FirestoreStorage implements IStorage {
   // Structure: users/{userFolder}/documents/{category}/{fileName}
 
   async getUserFolder(userId: string): Promise<string> {
-    const user = await this.getUser(userId);
+    let user = await this.getUser(userId);
+    const supabase = getSupabaseAdmin();
+
+    if (!user && supabase) {
+      try {
+        const { data: sbData } = await supabase.auth.admin.getUserById(userId);
+        if (sbData?.user) {
+          const u = sbData.user;
+          user = {
+            id: u.id,
+            username: (u.user_metadata as any)?.username || u.email?.split("@")[0] || u.id,
+            email: u.email || `${u.id}@filevault.local`,
+            name: (u.user_metadata as any)?.name || (u.user_metadata as any)?.full_name || u.email || u.id,
+            createdAt: u.created_at,
+            updatedAt: u.updated_at || u.created_at,
+          };
+          this.users.set(u.id, user);
+        }
+      } catch {}
+    }
+
     const raw = user?.name || user?.username?.split("@")[0] || userId;
     const sanitized = raw.toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 32);
 
-    const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
         const bucketName = getSupabaseBucketName();
@@ -1142,11 +1196,17 @@ export class FirestoreStorage implements IStorage {
               (emailFull && n === emailFull) ||
               (usernameClean && n === usernameClean) ||
               (emailPrefix && n === emailPrefix) ||
-              (emailPrefix && n.startsWith(emailPrefix))
+              (emailPrefix && (n.startsWith(emailPrefix) || n.includes(emailPrefix)))
             );
           });
           if (match) {
             return match.name;
+          }
+
+          // Fallback: If only 1 user folder exists in the bucket, use it!
+          const realFolders = list.filter((i) => !i.name.startsWith("."));
+          if (realFolders.length === 1) {
+            return realFolders[0].name;
           }
         }
       } catch {}
