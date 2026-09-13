@@ -288,9 +288,11 @@ export function useDeleteDocument() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const headers = await getAuthHeaders();
       const url = buildUrl(api.documents.delete.path, { id });
       const res = await fetch(url, {
         method: api.documents.delete.method,
+        headers,
         credentials: "include",
       });
       if (res.status === 404) throw new Error("Document not found");
@@ -314,7 +316,8 @@ export function useDashboardStats() {
   return useQuery({
     queryKey: [api.stats.get.path],
     queryFn: async () => {
-      const res = await fetch(api.stats.get.path, { credentials: "include" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(api.stats.get.path, { credentials: "include", headers });
       if (!res.ok) throw new Error("Failed to fetch dashboard metrics");
       return await res.json();
     },
@@ -327,7 +330,8 @@ export function useAuditLogs(options?: { activity?: boolean; all?: boolean }) {
   return useQuery<AuditLogRecord[]>({
     queryKey: [api.auditLogs.list.path, options],
     queryFn: async () => {
-      const res = await fetch(`${api.auditLogs.list.path}${queryStr}`, { credentials: "include" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${api.auditLogs.list.path}${queryStr}`, { credentials: "include", headers });
       if (!res.ok) throw new Error("Failed to fetch activity logs");
       return await res.json();
     },
@@ -339,7 +343,8 @@ export function useNotifications() {
   return useQuery<NotificationRecord[]>({
     queryKey: [api.notifications.list.path],
     queryFn: async () => {
-      const res = await fetch(api.notifications.list.path, { credentials: "include" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(api.notifications.list.path, { credentials: "include", headers });
       if (!res.ok) throw new Error("Failed to fetch notifications");
       return await res.json();
     },
@@ -351,9 +356,11 @@ export function useMarkNotificationRead() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const headers = await getAuthHeaders();
       const url = buildUrl(api.notifications.markRead.path, { id });
       await fetch(url, {
         method: api.notifications.markRead.method,
+        headers,
         credentials: "include",
       });
     },
@@ -368,8 +375,9 @@ export function useSharesForDocument(documentId: string) {
   return useQuery<ShareRecord[]>({
     queryKey: [api.shares.listForDocument.path, documentId],
     queryFn: async () => {
+      const headers = await getAuthHeaders();
       const url = buildUrl(api.shares.listForDocument.path, { documentId });
-      const res = await fetch(url, { credentials: "include" });
+      const res = await fetch(url, { credentials: "include", headers });
       if (!res.ok) throw new Error("Failed to fetch shares");
       return await res.json();
     },
@@ -382,7 +390,8 @@ export function useUserShares() {
   return useQuery<ShareRecord[]>({
     queryKey: [api.shares.list.path],
     queryFn: async () => {
-      const res = await fetch(api.shares.list.path, { credentials: "include" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(api.shares.list.path, { credentials: "include", headers });
       if (!res.ok) throw new Error("Failed to fetch user shares");
       return await res.json();
     },
@@ -401,9 +410,10 @@ export function useCreateShare() {
       permission?: "view" | "download" | "both";
       allowedFields?: string[];
     }) => {
+      const headers = await getAuthHeaders();
       const res = await fetch(api.shares.create.path, {
         method: api.shares.create.method,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify(data),
         credentials: "include",
       });
@@ -433,9 +443,11 @@ export function useRevokeShare() {
 
   return useMutation({
     mutationFn: async ({ id, documentId }: { id: string; documentId?: string }) => {
+      const headers = await getAuthHeaders();
       const url = buildUrl(api.shares.revoke.path, { id });
       const res = await fetch(url, {
         method: api.shares.revoke.method,
+        headers,
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to revoke share");
@@ -460,7 +472,8 @@ export function useTrashDocuments() {
   return useQuery<(DocumentRecord & { daysRemaining: number })[]>({
     queryKey: [api.trash.list.path],
     queryFn: async () => {
-      const res = await fetch(api.trash.list.path, { credentials: "include" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(api.trash.list.path, { credentials: "include", headers });
       if (!res.ok) throw new Error("Failed to fetch trash records");
       return await res.json();
     },
@@ -473,9 +486,11 @@ export function useRestoreDocument() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const headers = await getAuthHeaders();
       const url = buildUrl(api.trash.restore.path, { id });
       const res = await fetch(url, {
         method: api.trash.restore.method,
+        headers,
         credentials: "include",
       });
       if (!res.ok) {
@@ -503,9 +518,11 @@ export function usePermanentDeleteDocument() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const headers = await getAuthHeaders();
       const url = buildUrl(api.trash.permanentDelete.path, { id });
       const res = await fetch(url, {
         method: api.trash.permanentDelete.method,
+        headers,
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to permanently delete document");
@@ -528,8 +545,10 @@ export function useEmptyTrash() {
 
   return useMutation({
     mutationFn: async () => {
+      const headers = await getAuthHeaders();
       const res = await fetch(api.trash.empty.path, {
         method: api.trash.empty.method,
+        headers,
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to empty trash");
@@ -554,9 +573,11 @@ export function useTogglePinDocument() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const headers = await getAuthHeaders();
       const url = buildUrl(api.documents.pin.path, { id });
       const res = await fetch(url, {
         method: api.documents.pin.method,
+        headers,
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to toggle pin");

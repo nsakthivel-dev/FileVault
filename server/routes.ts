@@ -150,8 +150,14 @@ export async function registerRoutes(
   // 2. Get single document
   app.get("/api/documents/:id", requireAuth, async (req, res) => {
     try {
-      const doc = await storage.getDocument(req.params.id as string);
-      if (!doc || doc.ownerId !== req.user!.id || doc.isDeleted) {
+      const doc = await storage.getDocument(req.params.id as string, req.user!.id);
+      const isOwner = doc && (
+        doc.ownerId === req.user!.id ||
+        doc.ownerId === req.user!.email ||
+        doc.ownerId === (req.user as any)?.username ||
+        (req.user!.email && doc.ownerId === req.user!.email.replace(/[^a-z0-9_-]/g, "_"))
+      );
+      if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
 
@@ -726,11 +732,17 @@ export async function registerRoutes(
     }
   });
 
-  // 6. Download document
+  // 6  // 12. Download document file
   app.get("/api/documents/:id/download", requireAuth, async (req, res) => {
     try {
-      const doc = await storage.getDocument(req.params.id as string);
-      if (!doc || doc.ownerId !== req.user!.id || doc.isDeleted) {
+      const doc = await storage.getDocument(req.params.id as string, req.user!.id);
+      const isOwner = doc && (
+        doc.ownerId === req.user!.id ||
+        doc.ownerId === req.user!.email ||
+        doc.ownerId === (req.user as any)?.username ||
+        (req.user!.email && doc.ownerId === req.user!.email.replace(/[^a-z0-9_-]/g, "_"))
+      );
+      if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
 
@@ -758,8 +770,14 @@ export async function registerRoutes(
   // 7. Preview document
   app.get("/api/documents/:id/preview", requireAuth, async (req, res) => {
     try {
-      const doc = await storage.getDocument(req.params.id as string);
-      if (!doc || doc.ownerId !== req.user!.id || doc.isDeleted) {
+      const doc = await storage.getDocument(req.params.id as string, req.user!.id);
+      const isOwner = doc && (
+        doc.ownerId === req.user!.id ||
+        doc.ownerId === req.user!.email ||
+        doc.ownerId === (req.user as any)?.username ||
+        (req.user!.email && doc.ownerId === req.user!.email.replace(/[^a-z0-9_-]/g, "_"))
+      );
+      if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
 
@@ -803,8 +821,14 @@ export async function registerRoutes(
       }
 
       const { documentId, expiresInHours, accessLimit, allowedFields, permission } = parsed.data;
-      const doc = await storage.getDocument(documentId);
-      if (!doc || doc.ownerId !== req.user!.id) {
+      const doc = await storage.getDocument(documentId, req.user!.id);
+      const isOwner = doc && (
+        doc.ownerId === req.user!.id ||
+        doc.ownerId === req.user!.email ||
+        doc.ownerId === (req.user as any)?.username ||
+        (req.user!.email && doc.ownerId === req.user!.email.replace(/[^a-z0-9_-]/g, "_"))
+      );
+      if (!doc || !isOwner) {
         return res.status(404).json({ message: "Document not found" });
       }
 
@@ -855,8 +879,14 @@ export async function registerRoutes(
   // 3. List shares for a document
   app.get("/api/shares/document/:documentId", requireAuth, async (req, res) => {
     try {
-      const doc = await storage.getDocument(req.params.documentId as string);
-      if (!doc || doc.ownerId !== req.user!.id) {
+      const doc = await storage.getDocument(req.params.documentId as string, req.user!.id);
+      const isOwner = doc && (
+        doc.ownerId === req.user!.id ||
+        doc.ownerId === req.user!.email ||
+        doc.ownerId === (req.user as any)?.username ||
+        (req.user!.email && doc.ownerId === req.user!.email.replace(/[^a-z0-9_-]/g, "_"))
+      );
+      if (!doc || !isOwner) {
         return res.status(404).json({ message: "Document not found" });
       }
 

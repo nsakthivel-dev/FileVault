@@ -514,20 +514,26 @@ var FirestoreStorage = class {
     }
     return count;
   }
-  async getDocument(id) {
+  async getDocument(id, userId) {
+    let doc = this.documents.get(id);
+    if (doc) return doc;
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("documents").select("*").eq("id", id).maybeSingle();
         if (!error && data) {
-          const doc2 = mapDocFromSupabase(data);
-          this.documents.set(doc2.id, doc2);
-          return doc2;
+          doc = mapDocFromSupabase(data);
+          this.documents.set(doc.id, doc);
+          return doc;
         }
       } catch (err) {
       }
     }
-    let doc = this.documents.get(id);
+    if (userId) {
+      const userDocs = await this.getDocuments(userId, true);
+      doc = userDocs.find((d) => d.id === id);
+      if (doc) return doc;
+    }
     if (!doc && supabase) {
       try {
         const bucketName = getSupabaseBucketName();
@@ -535,21 +541,27 @@ var FirestoreStorage = class {
         if (userFolders) {
           for (const uf of userFolders) {
             if (uf.name.startsWith(".")) continue;
-            const { data: manifestBlob } = await supabase.storage.from(bucketName).download(`users/${uf.name}/.vault_manifest.json`);
-            if (manifestBlob) {
-              const list = JSON.parse(await manifestBlob.text());
-              for (const d of list) {
-                this.documents.set(d.id, d);
+            try {
+              const { data: manifestBlob } = await supabase.storage.from(bucketName).download(`users/${uf.name}/.vault_manifest.json`);
+              if (manifestBlob) {
+                const list = JSON.parse(await manifestBlob.text());
+                for (const d of list) {
+                  this.documents.set(d.id, d);
+                }
+                doc = this.documents.get(id);
+                if (doc) return doc;
               }
-              doc = this.documents.get(id);
-              if (doc) break;
+            } catch {
             }
+            await this.loadUserManifest(uf.name);
+            doc = this.documents.get(id);
+            if (doc) return doc;
           }
         }
-      } catch {
+      } catch (err) {
       }
     }
-    return doc;
+    return doc || this.documents.get(id);
   }
   async findDocumentBySha256(userId, sha256) {
     const supabase = getSupabaseAdmin();
@@ -743,7 +755,34 @@ var FirestoreStorage = class {
       } catch (err) {
       }
     }
-    return this.shares.get(id);
+    let share = this.shares.get(id);
+    if (!share && supabase) {
+      try {
+        const bucketName = getSupabaseBucketName();
+        const { data: userFolders } = await supabase.storage.from(bucketName).list("users");
+        if (userFolders) {
+          for (const uf of userFolders) {
+            if (uf.name.startsWith(".")) continue;
+            const { data } = await supabase.storage.from(bucketName).download(`users/${uf.name}/.shares.json`);
+            if (data) {
+              try {
+                const list = JSON.parse(await data.text());
+                if (Array.isArray(list)) {
+                  for (const s of list) {
+                    this.shares.set(s.id, s);
+                  }
+                  share = this.shares.get(id);
+                  if (share) return share;
+                }
+              } catch {
+              }
+            }
+          }
+        }
+      } catch {
+      }
+    }
+    return share || this.shares.get(id);
   }
   async getSharesForDocument(documentId, ownerId) {
     const supabase = getSupabaseAdmin();
@@ -2186,8 +2225,9 @@ async function registerRoutes(httpServer2, app2) {
   });
   app2.get("/api/documents/:id", requireAuth, async (req, res) => {
     try {
-      const doc = await storage.getDocument(req.params.id);
-      if (!doc || doc.ownerId !== req.user.id || doc.isDeleted) {
+      const doc = await storage.getDocument(req.params.id, req.user.id);
+      const isOwner = doc && (doc.ownerId === req.user.id || doc.ownerId === req.user.email || doc.ownerId === req.user?.username || req.user.email && doc.ownerId === req.user.email.replace(/[^a-z0-9_-]/g, "_"));
+      if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
       await storage.createAuditLog({
@@ -2664,8 +2704,9 @@ async function registerRoutes(httpServer2, app2) {
   });
   app2.get("/api/documents/:id/download", requireAuth, async (req, res) => {
     try {
-      const doc = await storage.getDocument(req.params.id);
-      if (!doc || doc.ownerId !== req.user.id || doc.isDeleted) {
+      const doc = await storage.getDocument(req.params.id, req.user.id);
+      const isOwner = doc && (doc.ownerId === req.user.id || doc.ownerId === req.user.email || doc.ownerId === req.user?.username || req.user.email && doc.ownerId === req.user.email.replace(/[^a-z0-9_-]/g, "_"));
+      if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
       const filePath = storage.getFilePath(doc.storagePath);
@@ -2688,8 +2729,9 @@ async function registerRoutes(httpServer2, app2) {
   });
   app2.get("/api/documents/:id/preview", requireAuth, async (req, res) => {
     try {
-      const doc = await storage.getDocument(req.params.id);
-      if (!doc || doc.ownerId !== req.user.id || doc.isDeleted) {
+      const doc = await storage.getDocument(req.params.id, req.user.id);
+      const isOwner = doc && (doc.ownerId === req.user.id || doc.ownerId === req.user.email || doc.ownerId === req.user?.username || req.user.email && doc.ownerId === req.user.email.replace(/[^a-z0-9_-]/g, "_"));
+      if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
       const filePath = storage.getFilePath(doc.storagePath);
@@ -2721,8 +2763,9 @@ async function registerRoutes(httpServer2, app2) {
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
       }
       const { documentId, expiresInHours, accessLimit, allowedFields, permission } = parsed.data;
-      const doc = await storage.getDocument(documentId);
-      if (!doc || doc.ownerId !== req.user.id) {
+      const doc = await storage.getDocument(documentId, req.user.id);
+      const isOwner = doc && (doc.ownerId === req.user.id || doc.ownerId === req.user.email || doc.ownerId === req.user?.username || req.user.email && doc.ownerId === req.user.email.replace(/[^a-z0-9_-]/g, "_"));
+      if (!doc || !isOwner) {
         return res.status(404).json({ message: "Document not found" });
       }
       let expiresAt = null;
@@ -2764,8 +2807,9 @@ async function registerRoutes(httpServer2, app2) {
   });
   app2.get("/api/shares/document/:documentId", requireAuth, async (req, res) => {
     try {
-      const doc = await storage.getDocument(req.params.documentId);
-      if (!doc || doc.ownerId !== req.user.id) {
+      const doc = await storage.getDocument(req.params.documentId, req.user.id);
+      const isOwner = doc && (doc.ownerId === req.user.id || doc.ownerId === req.user.email || doc.ownerId === req.user?.username || req.user.email && doc.ownerId === req.user.email.replace(/[^a-z0-9_-]/g, "_"));
+      if (!doc || !isOwner) {
         return res.status(404).json({ message: "Document not found" });
       }
       const shares = await storage.getSharesForDocument(doc.id, req.user.id);

@@ -27,7 +27,7 @@ export interface IStorage {
   permanentDeleteDocument(id: string): Promise<void>;
   emptyTrash(userId: string): Promise<number>;
   togglePinDocument(id: string): Promise<DocumentRecord | undefined>;
-  getDocument(id: string): Promise<DocumentRecord | undefined>;
+  getDocument(id: string, userId?: string): Promise<DocumentRecord | undefined>;
   findDocumentBySha256(userId: string, sha256: string): Promise<DocumentRecord | undefined>;
   createDocument(doc: DocumentRecord): Promise<DocumentRecord>;
   updateDocument(id: string, updates: Partial<DocumentRecord>): Promise<DocumentRecord | undefined>;
@@ -600,13 +600,17 @@ export class FirestoreStorage implements IStorage {
     return count;
   }
 
-  async getDocument(id: string): Promise<DocumentRecord | undefined> {
+  async getDocument(id: string, userId?: string): Promise<DocumentRecord | undefined> {
+    // 1. In-memory check
+    let doc = this.documents.get(id);
+    if (doc) return doc;
+
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("documents").select("*").eq("id", id).maybeSingle();
         if (!error && data) {
-          const doc = mapDocFromSupabase(data);
+          doc = mapDocFromSupabase(data);
           this.documents.set(doc.id, doc);
           return doc;
         }
@@ -615,7 +619,14 @@ export class FirestoreStorage implements IStorage {
       }
     }
 
-    let doc = this.documents.get(id);
+    // 2. If userId provided, load that user's documents into memory
+    if (userId) {
+      const userDocs = await this.getDocuments(userId, true);
+      doc = userDocs.find((d) => d.id === id);
+      if (doc) return doc;
+    }
+
+    // 3. Fallback: scan across all user folders in Supabase Storage
     if (!doc && supabase) {
       try {
         const bucketName = getSupabaseBucketName();
@@ -623,20 +634,31 @@ export class FirestoreStorage implements IStorage {
         if (userFolders) {
           for (const uf of userFolders) {
             if (uf.name.startsWith(".")) continue;
-            const { data: manifestBlob } = await supabase.storage.from(bucketName).download(`users/${uf.name}/.vault_manifest.json`);
-            if (manifestBlob) {
-              const list: DocumentRecord[] = JSON.parse(await manifestBlob.text());
-              for (const d of list) {
-                this.documents.set(d.id, d);
+            // First check manifest
+            try {
+              const { data: manifestBlob } = await supabase.storage.from(bucketName).download(`users/${uf.name}/.vault_manifest.json`);
+              if (manifestBlob) {
+                const list: DocumentRecord[] = JSON.parse(await manifestBlob.text());
+                for (const d of list) {
+                  this.documents.set(d.id, d);
+                }
+                doc = this.documents.get(id);
+                if (doc) return doc;
               }
-              doc = this.documents.get(id);
-              if (doc) break;
-            }
+            } catch {}
+
+            // If manifest didn't have it, discover physical files in this user folder
+            await this.loadUserManifest(uf.name);
+            doc = this.documents.get(id);
+            if (doc) return doc;
           }
         }
-      } catch {}
+      } catch (err) {
+        // ignore
+      }
     }
-    return doc;
+
+    return doc || this.documents.get(id);
   }
 
   async findDocumentBySha256(userId: string, sha256: string): Promise<DocumentRecord | undefined> {
@@ -858,7 +880,33 @@ export class FirestoreStorage implements IStorage {
       }
     }
 
-    return this.shares.get(id);
+    let share = this.shares.get(id);
+    if (!share && supabase) {
+      try {
+        const bucketName = getSupabaseBucketName();
+        const { data: userFolders } = await supabase.storage.from(bucketName).list("users");
+        if (userFolders) {
+          for (const uf of userFolders) {
+            if (uf.name.startsWith(".")) continue;
+            const { data } = await supabase.storage.from(bucketName).download(`users/${uf.name}/.shares.json`);
+            if (data) {
+              try {
+                const list: ShareRecord[] = JSON.parse(await data.text());
+                if (Array.isArray(list)) {
+                  for (const s of list) {
+                    this.shares.set(s.id, s);
+                  }
+                  share = this.shares.get(id);
+                  if (share) return share;
+                }
+              } catch {}
+            }
+          }
+        }
+      } catch {}
+    }
+
+    return share || this.shares.get(id);
   }
 
   async getSharesForDocument(documentId: string, ownerId: string): Promise<ShareRecord[]> {
