@@ -467,6 +467,14 @@ var FirestoreStorage = class {
     }
     if (docs.length === 0) {
       docs = await this.loadUserManifest(userId);
+      if (docs.length > 0 && supabase) {
+        try {
+          const rows = docs.map(mapDocToSupabase);
+          supabase.from("documents").upsert(rows).catch(() => {
+          });
+        } catch {
+        }
+      }
     }
     if (docs.length === 0) {
       docs = Array.from(this.documents.values()).filter((d) => d.ownerId === userId);

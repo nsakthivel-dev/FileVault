@@ -549,6 +549,12 @@ export class FirestoreStorage implements IStorage {
     // If PostgreSQL returned nothing or table is not created yet, load from Supabase Storage manifest!
     if (docs.length === 0) {
       docs = await this.loadUserManifest(userId);
+      if (docs.length > 0 && supabase) {
+        try {
+          const rows = docs.map(mapDocToSupabase);
+          supabase.from("documents").upsert(rows).catch(() => {});
+        } catch {}
+      }
     }
 
     if (docs.length === 0) {
