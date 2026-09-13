@@ -99,7 +99,7 @@ export default function TrashPage() {
         <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-start space-x-3">
           <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-xs text-amber-900 leading-relaxed">
-            <span className="font-bold">Automated 30-Day Protection Window:</span> Documents moved to the trash remain isolated and encrypted in your dedicated storage folder. After 30 days from deletion, our enclave garbage collection routine permanently wipes the physical data and revokes all anchor tokens.
+            <span className="font-bold">Automated 30-Day Protection Window:</span> Documents moved to the trash remain isolated and encrypted in your dedicated storage folder. After 30 days from deletion, our automated retention routine permanently deletes the physical data and revokes all share links.
           </div>
         </div>
 

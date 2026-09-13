@@ -76,7 +76,7 @@ export function DashboardLayout({ children, onOpenUpload }: { children: ReactNod
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Top Header Bar */}
         <header className="flex items-center justify-between px-4 py-2.5 bg-white/80 backdrop-blur-md border-b border-slate-200/80 flex-shrink-0 lg:px-7 z-10">
-          {/* Left: Mobile Toggle + Breadcrumbs + Enclave Badge */}
+          {/* Left: Mobile Toggle + Breadcrumbs + Security Badge */}
           <div className="flex items-center space-x-3 sm:space-x-4">
             {!isDesktop && (
               <button
@@ -94,10 +94,10 @@ export function DashboardLayout({ children, onOpenUpload }: { children: ReactNod
               <span className="text-slate-900 font-semibold">{breadcrumbText}</span>
             </div>
 
-            {/* Enclave active pill badge */}
+            {/* Real Security Status badge */}
             <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>FIPS 140-2 Enclave Active</span>
+              <span>SHA-256 Verified & Secure</span>
             </div>
           </div>
 

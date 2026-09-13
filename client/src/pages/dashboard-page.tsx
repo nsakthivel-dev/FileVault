@@ -155,8 +155,8 @@ export default function DashboardPage() {
     setTimeout(() => {
       setIsVerifying(false);
       toast({
-        title: "KMS Integrity Verified",
-        description: `All ${totalFiles} vaulted documents match their Merkle SHA-256 seal in hardware enclave.`,
+        title: "SHA-256 Integrity Verified",
+        description: `All ${totalFiles} vaulted documents match their SHA-256 cryptographic fingerprints.`,
       });
     }, 900);
   };
@@ -170,12 +170,12 @@ export default function DashboardPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `enclave_audit_trail_${Date.now()}.json`;
+      a.download = `vault_audit_trail_${Date.now()}.json`;
       a.click();
       URL.revokeObjectURL(url);
       toast({
         title: "Audit Trail Exported",
-        description: "Immutable enclave cryptographic logs downloaded.",
+        description: "Security and activity logs downloaded successfully.",
       });
     } catch {
       toast({
@@ -227,7 +227,7 @@ export default function DashboardPage() {
     if (doc.institution) return `${ext} • ${doc.institution}`;
     if (doc.organization) return `${ext} • ${doc.organization}`;
     if (doc.documentType === "certificate") return `${ext} • Verified Issuer`;
-    return `${ext} • Enclave Encrypted`;
+    return `${ext} • AES-256 Encrypted`;
   };
 
   return (
@@ -245,7 +245,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Zero-knowledge client-side encrypted storage backed by SHA-256 integrity anchoring.
+              Encrypted cloud document storage backed by SHA-256 integrity verification.
             </p>
           </div>
 
@@ -350,7 +350,7 @@ export default function DashboardPage() {
             <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
               <div className="flex items-center space-x-1.5">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-slate-600 font-medium">All hashes match KMS</span>
+                <span className="text-slate-600 font-medium">All SHA-256 hashes verified</span>
               </div>
               <span className="font-mono text-slate-400 text-[11px]">
                 SHA-256
@@ -731,7 +731,7 @@ export default function DashboardPage() {
             <div className="flex items-center space-x-2">
               <UploadCloud className="h-4 w-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
               <span className="text-slate-600 font-medium">
-                Drop files to auto-compute SHA-256 seal & encrypt in hardware enclave
+                Drop files to compute SHA-256 checksum & store with AES-256 encryption
               </span>
             </div>
             <span className="font-mono text-[11px] text-slate-400">
@@ -740,9 +740,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* BOTTOM TWO SPLIT CARDS (ACTIVITY TRAIL & ENCLAVE SPEC) */}
+        {/* BOTTOM TWO SPLIT CARDS (ACTIVITY TRAIL & SECURITY SPECS) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Card Left: ENCLAVE ACTIVITY TRAIL (Spans 2 cols) */}
+          {/* Card Left: ACTIVITY TRAIL (Spans 2 cols) */}
           <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between">
             <div>
               {/* Header */}
@@ -750,14 +750,14 @@ export default function DashboardPage() {
                 <div className="flex items-center space-x-2">
                   <FileText className="h-4 w-4 text-slate-600" />
                   <span className="font-mono text-xs font-bold uppercase tracking-wider text-slate-700">
-                    ENCLAVE ACTIVITY TRAIL
+                    ACTIVITY AUDIT TRAIL
                   </span>
                 </div>
                 <button
                   onClick={handleExportAudit}
                   className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center space-x-1"
                 >
-                  <span>Full Export</span>
+                  <span>Export Logs</span>
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -783,7 +783,7 @@ export default function DashboardPage() {
 
                     let dotColor = "bg-emerald-500";
                     let actionTitle = "file.uploaded";
-                    let actionSubtitle = log.details || "Vaulted & encrypted in pool";
+                    let actionSubtitle = log.details || "Stored with SHA-256 fingerprint";
 
                     if (isDelete) {
                       dotColor = "bg-rose-500";
@@ -830,14 +830,14 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Card Right: ENCLAVE SPEC (Spans 1 col) */}
+          {/* Card Right: VAULT SPECIFICATIONS (Spans 1 col) */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between">
             <div>
               {/* Header */}
               <div className="flex items-center space-x-2 pb-3.5 border-b border-slate-100">
                 <Shield className="h-4 w-4 text-slate-600" />
                 <span className="font-mono text-xs font-bold uppercase tracking-wider text-slate-700">
-                  ENCLAVE SPEC
+                  SECURITY SPECIFICATIONS
                 </span>
               </div>
 
@@ -845,23 +845,23 @@ export default function DashboardPage() {
               <div className="mt-4 space-y-3">
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-xs">
                   <span className="text-slate-500 font-medium">Encryption</span>
-                  <span className="font-mono font-semibold text-slate-800">AES-256-GCM</span>
+                  <span className="font-mono font-semibold text-slate-800">AES-256 Storage</span>
                 </div>
 
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-xs">
-                  <span className="text-slate-500 font-medium">Custody</span>
-                  <span className="font-mono font-semibold text-slate-800">Hardware HSM</span>
+                  <span className="text-slate-500 font-medium">Transport</span>
+                  <span className="font-mono font-semibold text-slate-800">HTTPS / TLS 1.3</span>
                 </div>
 
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-xs">
                   <span className="text-slate-500 font-medium">Integrity</span>
-                  <span className="font-mono font-semibold text-slate-800">Merkle SHA-256</span>
+                  <span className="font-mono font-semibold text-slate-800">SHA-256 Checksum</span>
                 </div>
 
                 <div className="flex items-center justify-between py-1.5 text-xs">
-                  <span className="text-slate-500 font-medium">Zero-Knowledge</span>
+                  <span className="text-slate-500 font-medium">Tamper Detection</span>
                   <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Strict Opt-Out
+                    Active
                   </span>
                 </div>
               </div>
@@ -869,19 +869,19 @@ export default function DashboardPage() {
 
             {/* Footer */}
             <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-slate-400">
-              <span>TLS 1.3 / mTLS</span>
+              <span>Cloud Vault</span>
               <a 
                 href="#specs" 
                 onClick={(e) => {
                   e.preventDefault();
                   toast({
-                    title: "Hardware Security Enclave Specs",
-                    description: "FIPS 140-2 Level 3 HSM, AES-256-GCM authenticated encryption, Merkle tree verification.",
+                    title: "Security Specifications",
+                    description: "Cryptographic SHA-256 checksums, duplicate tamper detection, TLS 1.3 transport, and AES-256 cloud-managed storage at rest.",
                   });
                 }}
                 className="text-blue-600 font-semibold hover:underline flex items-center gap-1 font-sans"
               >
-                Specs <ExternalLink className="h-3 w-3" />
+                Details <ExternalLink className="h-3 w-3" />
               </a>
             </div>
           </div>

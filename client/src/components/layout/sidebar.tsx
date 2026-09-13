@@ -274,7 +274,7 @@ export function Sidebar({
           </div>
         </div>
 
-        {/* Bottom Storage & KMS Widget */}
+        {/* Bottom Storage & Cloud Vault Widget */}
         <div className="p-3 border-t border-slate-200/80">
           <div className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs space-y-2.5">
             <div className="flex items-center justify-between text-xs">
@@ -298,7 +298,7 @@ export function Sidebar({
             <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
               <div className="flex items-center space-x-1.5">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-semibold text-slate-800 text-[11px]">KMS Enclave</span>
+                <span className="font-semibold text-slate-800 text-[11px]">Cloud Vault</span>
               </div>
               <button
                 onClick={() => logout.mutate()}
