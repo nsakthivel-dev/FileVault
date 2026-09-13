@@ -187,10 +187,10 @@ export function DocumentDetailModal({
                 {document.id.slice(0, 8)}...
               </span>
             </div>
-            <DialogTitle className="text-xl font-display font-bold text-slate-900 mt-2 truncate">
+            <DialogTitle className="text-xl font-display font-bold text-slate-900 mt-2 truncate" title={document.title || document.originalName}>
               {document.title || document.originalName}
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
+            <DialogDescription className="text-xs text-slate-500 truncate" title={document.originalName}>
               {document.originalName} • Uploaded on {format(new Date(document.uploadedAt), "MMM d, yyyy")} • {formatBytes(document.fileSize)}
             </DialogDescription>
           </DialogHeader>

@@ -662,25 +662,28 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={doc.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 shadow-xs flex flex-col justify-between space-y-3"
+                    className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 shadow-xs flex flex-col justify-between space-y-3 min-w-0 overflow-hidden"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-2.5">
-                        <div className="h-9 w-9 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-500">
+                    <div className="flex items-start justify-between gap-2 min-w-0 w-full">
+                      <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                        <div className="h-9 w-9 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-500 shrink-0">
                           <FileText className="h-4 w-4" />
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <h4 
                             onClick={() => handleOpenPreview(doc)}
-                            className="font-bold text-xs text-slate-900 truncate cursor-pointer hover:text-blue-600"
+                            className="font-bold text-xs text-slate-900 truncate block cursor-pointer hover:text-blue-600"
+                            title={doc.originalName}
                           >
                             {doc.originalName}
                           </h4>
-                          <span className="text-[11px] text-slate-400">{getFriendlyCategory(doc.documentType)}</span>
+                          <span className="text-[11px] text-slate-400 truncate block" title={getFriendlyCategory(doc.documentType)}>
+                            {getFriendlyCategory(doc.documentType)}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-1.5">
+                      <div className="flex items-center space-x-1.5 shrink-0">
                         <button
                           onClick={() => togglePinMutation.mutate(doc.id)}
                           className={`p-1 rounded-md transition-colors ${

@@ -80,23 +80,23 @@ export default function RecentFilesPage() {
               <motion.div
                 key={doc.id}
                 whileHover={{ y: -2 }}
-                className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between space-y-3"
+                className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between space-y-3 min-w-0 overflow-hidden"
               >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="min-w-0 w-full">
+                  <div className="flex items-start justify-between gap-2 min-w-0 w-full">
+                    <div className="flex items-center space-x-2.5 min-w-0 flex-1">
                       <div className="h-9 w-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
                         <FileText className="h-4.5 w-4.5" />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <h4 
                           onClick={() => setSelectedDoc(doc)}
-                          className="font-semibold text-xs text-slate-900 truncate hover:text-blue-600 cursor-pointer"
+                          className="font-semibold text-xs text-slate-900 truncate block hover:text-blue-600 cursor-pointer"
                           title={doc.originalName}
                         >
                           {doc.originalName}
                         </h4>
-                        <span className="text-[10px] text-slate-400 font-mono block">
+                        <span className="text-[10px] text-slate-400 font-mono block truncate">
                           {formatBytes(doc.fileSize)} • {format(new Date(doc.uploadedAt), "h:mm a")}
                         </span>
                       </div>
@@ -105,7 +105,7 @@ export default function RecentFilesPage() {
                     {/* Pin button */}
                     <button
                       onClick={() => togglePinMutation.mutate(doc.id)}
-                      className={`p-1.5 rounded-lg transition-colors ${
+                      className={`p-1.5 rounded-lg transition-colors shrink-0 ${
                         doc.isPinned 
                           ? "text-amber-500 bg-amber-50" 
                           : "text-slate-300 hover:text-slate-600 hover:bg-slate-100"

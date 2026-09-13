@@ -154,10 +154,10 @@ export default function TrashPage() {
                               <FileText className="h-4 w-4" />
                             </div>
                             <div className="min-w-0">
-                              <div className="truncate font-semibold text-xs text-slate-900 max-w-[240px]">
+                              <div className="truncate font-semibold text-xs text-slate-900 max-w-[240px]" title={doc.originalName}>
                                 {doc.originalName}
                               </div>
-                              <span className="text-[10px] text-slate-400 font-mono">
+                              <span className="text-[10px] text-slate-400 font-mono block truncate max-w-[240px]">
                                 {doc.storagePath.split("/").pop() || doc.id}
                               </span>
                             </div>

@@ -504,12 +504,12 @@ export default function DocumentsPage() {
                       key={doc.id}
                       whileHover={{ y: -2 }}
                       transition={{ duration: 0.15 }}
-                      className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-md flex flex-col justify-between relative group"
+                      className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hover:shadow-md flex flex-col justify-between relative group min-w-0 overflow-hidden"
                     >
-                      <div>
+                      <div className="min-w-0 w-full">
                         {/* Card Header: Icon + Status */}
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-3">
+                        <div className="flex items-start justify-between gap-2 min-w-0 w-full">
+                          <div className="flex items-center space-x-3 min-w-0 flex-1">
                             <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0 border border-slate-200/80">
                               {isPdf ? (
                                 <FileText className="h-5 w-5 text-rose-500" />
@@ -519,15 +519,15 @@ export default function DocumentsPage() {
                                 <FileText className="h-5 w-5 text-slate-500" />
                               )}
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <h4 
-                                className="font-bold text-sm text-slate-900 truncate hover:text-blue-600 cursor-pointer transition-colors" 
+                                className="font-bold text-sm text-slate-900 truncate block hover:text-blue-600 cursor-pointer transition-colors" 
                                 title={doc.title || doc.originalName}
                                 onClick={() => handleOpenPreview(doc)}
                               >
                                 {doc.title || doc.originalName}
                               </h4>
-                              <p className="text-[11px] text-slate-400 truncate">
+                              <p className="text-[11px] text-slate-400 truncate block" title={doc.originalName}>
                                 {doc.originalName}
                               </p>
                             </div>
@@ -536,7 +536,7 @@ export default function DocumentsPage() {
                           {/* Quick Dropdown Actions */}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600 rounded-lg">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600 rounded-lg shrink-0">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
