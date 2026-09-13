@@ -2,6 +2,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { DocumentRecord, ShareRecord, AuditLogRecord, NotificationRecord } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { supabase, isSupabaseClientConfigured } from "@/lib/supabase";
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  if (isSupabaseClientConfigured && supabase) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.access_token) {
+        headers["Authorization"] = `Bearer ${data.session.access_token}`;
+      }
+    } catch {}
+  }
+  return headers;
+}
 
 export function useDocuments(filters?: { category?: string; status?: string; search?: string; tag?: string }) {
   const queryParams = new URLSearchParams();
@@ -16,7 +30,8 @@ export function useDocuments(filters?: { category?: string; status?: string; sea
   return useQuery<DocumentRecord[]>({
     queryKey: [api.documents.list.path, filters],
     queryFn: async () => {
-      const res = await fetch(path, { credentials: "include" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(path, { credentials: "include", headers });
       if (!res.ok) throw new Error("Failed to fetch documents");
       return await res.json();
     },
@@ -35,8 +50,9 @@ export function useDocument(id: string) {
   return useQuery<DocumentRecord | null>({
     queryKey: [api.documents.get.path, id],
     queryFn: async () => {
+      const headers = await getAuthHeaders();
       const url = buildUrl(api.documents.get.path, { id });
-      const res = await fetch(url, { credentials: "include" });
+      const res = await fetch(url, { credentials: "include", headers });
       if (res.status === 404) return null;
       if (!res.ok) throw new Error("Failed to fetch document");
       return await res.json();

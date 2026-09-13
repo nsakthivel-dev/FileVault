@@ -13,10 +13,10 @@ import { createClient } from "@supabase/supabase-js";
 var supabaseAdminClient = null;
 var DEFAULT_SUPABASE_URL = "https://yfwpcmxxxkxiyqveckdw.supabase.co";
 var DEFAULT_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlmd3BjbXh4eGt4aXlxdmVja2R3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTI3OTAxNywiZXhwIjoyMTA0ODU1MDE3fQ.PwM0nCzMYDM_KzDBh3frkzaHN1pu6F1p8HoW2aNRbT4";
-function getSupabaseBucketName() {
+function getSupabaseBucketName2() {
   return process.env.SUPABASE_STORAGE_BUCKET || "documents";
 }
-function getSupabaseAdmin() {
+function getSupabaseAdmin2() {
   if (supabaseAdminClient) return supabaseAdminClient;
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
   let key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -147,7 +147,7 @@ var FirestoreStorage = class {
   }
   // --- Users ---
   async getUser(id) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("users").select("*").eq("id", id).maybeSingle();
@@ -191,7 +191,7 @@ var FirestoreStorage = class {
     return userRecord;
   }
   async getUserByUsername(username) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("users").select("*").ilike("username", username).maybeSingle();
@@ -265,7 +265,7 @@ var FirestoreStorage = class {
       createdAt: now,
       updatedAt: now
     };
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         await supabase.from("users").upsert({
@@ -291,11 +291,11 @@ var FirestoreStorage = class {
   }
   // --- Supabase Storage Manifest & State Persistence ---
   async saveUserManifest(userId) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (!supabase) return;
     try {
       const userFolder = await this.getUserFolder(userId);
-      const bucketName = getSupabaseBucketName();
+      const bucketName = getSupabaseBucketName2();
       const userDocs = Array.from(this.documents.values()).filter((d) => d.ownerId === userId);
       const manifestBuf = Buffer.from(JSON.stringify(userDocs, null, 2), "utf-8");
       await supabase.storage.from(bucketName).upload(`users/${userFolder}/.vault_manifest.json`, manifestBuf, {
@@ -308,12 +308,12 @@ var FirestoreStorage = class {
     }
   }
   async loadUserManifest(userId) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (!supabase) {
       return Array.from(this.documents.values()).filter((d) => d.ownerId === userId);
     }
     const userFolder = await this.getUserFolder(userId);
-    const bucketName = getSupabaseBucketName();
+    const bucketName = getSupabaseBucketName2();
     let loadedDocs = [];
     try {
       const { data, error } = await supabase.storage.from(bucketName).download(`users/${userFolder}/.vault_manifest.json`);
@@ -430,7 +430,7 @@ var FirestoreStorage = class {
   // --- Documents ---
   async getDocuments(userId, includeDeleted = false) {
     let docs = [];
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("documents").select("*").eq("owner_id", userId).order("uploaded_at", { ascending: false });
@@ -515,7 +515,7 @@ var FirestoreStorage = class {
     return count;
   }
   async getDocument(id) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("documents").select("*").eq("id", id).maybeSingle();
@@ -530,7 +530,7 @@ var FirestoreStorage = class {
     let doc = this.documents.get(id);
     if (!doc && supabase) {
       try {
-        const bucketName = getSupabaseBucketName();
+        const bucketName = getSupabaseBucketName2();
         const { data: userFolders } = await supabase.storage.from(bucketName).list("users");
         if (userFolders) {
           for (const uf of userFolders) {
@@ -552,7 +552,7 @@ var FirestoreStorage = class {
     return doc;
   }
   async findDocumentBySha256(userId, sha256) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("documents").select("*").eq("owner_id", userId).eq("sha256", sha256).limit(1).maybeSingle();
@@ -567,7 +567,7 @@ var FirestoreStorage = class {
   }
   async createDocument(doc) {
     this.documents.set(doc.id, doc);
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const row = mapDocToSupabase(doc);
@@ -581,7 +581,7 @@ var FirestoreStorage = class {
         console.warn("[Supabase DB] Table insert notice:", err.message);
       }
       try {
-        const bucketName = getSupabaseBucketName();
+        const bucketName = getSupabaseBucketName2();
         const metaBuf = Buffer.from(JSON.stringify(doc, null, 2), "utf-8");
         await supabase.storage.from(bucketName).upload(`${doc.storagePath}.meta.json`, metaBuf, {
           upsert: true,
@@ -603,7 +603,7 @@ var FirestoreStorage = class {
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
     this.documents.set(id, updated);
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const row = mapDocToSupabase(updated);
@@ -615,7 +615,7 @@ var FirestoreStorage = class {
         console.warn("[Supabase DB] Table update notice:", err.message);
       }
       try {
-        const bucketName = getSupabaseBucketName();
+        const bucketName = getSupabaseBucketName2();
         const metaBuf = Buffer.from(JSON.stringify(updated, null, 2), "utf-8");
         await supabase.storage.from(bucketName).upload(`${updated.storagePath}.meta.json`, metaBuf, {
           upsert: true,
@@ -630,7 +630,7 @@ var FirestoreStorage = class {
   async deleteDocument(id) {
     const doc = this.documents.get(id);
     this.documents.delete(id);
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         await supabase.from("documents").delete().eq("id", id);
@@ -639,7 +639,7 @@ var FirestoreStorage = class {
       }
       if (doc) {
         try {
-          const bucketName = getSupabaseBucketName();
+          const bucketName = getSupabaseBucketName2();
           await supabase.storage.from(bucketName).remove([`${doc.storagePath}.meta.json`]);
         } catch {
         }
@@ -659,11 +659,11 @@ var FirestoreStorage = class {
   }
   // --- Shares ---
   async saveUserShares(userId) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (!supabase) return;
     try {
       const userFolder = await this.getUserFolder(userId);
-      const bucketName = getSupabaseBucketName();
+      const bucketName = getSupabaseBucketName2();
       const userShares = Array.from(this.shares.values()).filter((s) => s.ownerId === userId);
       await supabase.storage.from(bucketName).upload(
         `users/${userFolder}/.shares.json`,
@@ -674,11 +674,11 @@ var FirestoreStorage = class {
     }
   }
   async loadUserShares(userId) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (!supabase) return Array.from(this.shares.values()).filter((s) => s.ownerId === userId);
     try {
       const userFolder = await this.getUserFolder(userId);
-      const bucketName = getSupabaseBucketName();
+      const bucketName = getSupabaseBucketName2();
       const { data, error } = await supabase.storage.from(bucketName).download(`users/${userFolder}/.shares.json`);
       if (!error && data) {
         const list = JSON.parse(await data.text());
@@ -695,7 +695,7 @@ var FirestoreStorage = class {
   }
   async createShare(share) {
     this.shares.set(share.id, share);
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         await supabase.from("shares").insert({
@@ -720,7 +720,7 @@ var FirestoreStorage = class {
     return share;
   }
   async getShare(id) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("shares").select("*").eq("id", id).maybeSingle();
@@ -746,7 +746,7 @@ var FirestoreStorage = class {
     return this.shares.get(id);
   }
   async getSharesForDocument(documentId, ownerId) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("shares").select("*").eq("document_id", documentId).eq("owner_id", ownerId);
@@ -773,7 +773,7 @@ var FirestoreStorage = class {
     return allUserShares.filter((s) => s.documentId === documentId && s.ownerId === ownerId);
   }
   async getUserShares(ownerId) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("shares").select("*").eq("owner_id", ownerId).order("created_at", { ascending: false });
@@ -807,7 +807,7 @@ var FirestoreStorage = class {
       ...updates
     };
     this.shares.set(id, updated);
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         await supabase.from("shares").update({
@@ -825,7 +825,7 @@ var FirestoreStorage = class {
   async deleteShare(id) {
     const existing = this.shares.get(id);
     this.shares.delete(id);
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         await supabase.from("shares").delete().eq("id", id);
@@ -844,7 +844,7 @@ var FirestoreStorage = class {
       ...log,
       timestamp: log.timestamp || (/* @__PURE__ */ new Date()).toISOString()
     };
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { error } = await supabase.from("audit_logs").insert({
@@ -870,7 +870,7 @@ var FirestoreStorage = class {
     if (supabase) {
       try {
         const userFolder = await this.getUserFolder(entry.userId);
-        const bucketName = getSupabaseBucketName();
+        const bucketName = getSupabaseBucketName2();
         const userLogs = this.auditLogs.filter((l) => l.userId === entry.userId).slice(0, 100);
         await supabase.storage.from(bucketName).upload(
           `users/${userFolder}/.audit_trail.json`,
@@ -883,7 +883,7 @@ var FirestoreStorage = class {
     return entry;
   }
   async getAuditLogs(userId) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("audit_logs").select("*").eq("user_id", userId).order("timestamp", { ascending: false }).limit(100);
@@ -903,7 +903,7 @@ var FirestoreStorage = class {
       }
       try {
         const userFolder = await this.getUserFolder(userId);
-        const bucketName = getSupabaseBucketName();
+        const bucketName = getSupabaseBucketName2();
         const { data, error } = await supabase.storage.from(bucketName).download(`users/${userFolder}/.audit_trail.json`);
         if (!error && data) {
           const list = JSON.parse(await data.text());
@@ -923,7 +923,7 @@ var FirestoreStorage = class {
   }
   // --- Notifications ---
   async getNotifications(userId) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         const { data, error } = await supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50);
@@ -950,7 +950,7 @@ var FirestoreStorage = class {
       ...notif,
       createdAt: notif.createdAt || (/* @__PURE__ */ new Date()).toISOString()
     };
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         await supabase.from("notifications").insert({
@@ -970,7 +970,7 @@ var FirestoreStorage = class {
     return item;
   }
   async markNotificationRead(id, userId) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
         await supabase.from("notifications").update({ read: true }).eq("id", id).eq("user_id", userId);
@@ -988,7 +988,7 @@ var FirestoreStorage = class {
   // Structure: users/{userFolder}/documents/{category}/{fileName}
   async getUserFolder(userId) {
     let user = await this.getUser(userId);
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (!user && supabase) {
       try {
         const { data: sbData } = await supabase.auth.admin.getUserById(userId);
@@ -1011,7 +1011,7 @@ var FirestoreStorage = class {
     const sanitized = raw.toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 32);
     if (supabase) {
       try {
-        const bucketName = getSupabaseBucketName();
+        const bucketName = getSupabaseBucketName2();
         const { data: list } = await supabase.storage.from(bucketName).list("users");
         if (list && list.length > 0) {
           const emailPrefix = user?.email?.split("@")[0]?.toLowerCase();
@@ -1037,9 +1037,9 @@ var FirestoreStorage = class {
   async createUserFolder(folderName) {
     const cleanFolder = folderName.toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 32);
     const keepFilePath = `users/${cleanFolder}/.keep`;
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
-      const bucketName = getSupabaseBucketName();
+      const bucketName = getSupabaseBucketName2();
       try {
         await supabase.storage.from(bucketName).upload(keepFilePath, Buffer.from(""), {
           upsert: true
@@ -1074,9 +1074,9 @@ var FirestoreStorage = class {
         localSubDir = ["users", userFolder, "documents", sanitizedCategory, fileName];
       }
     }
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
-      const bucketName = getSupabaseBucketName();
+      const bucketName = getSupabaseBucketName2();
       try {
         const { error } = await supabase.storage.from(bucketName).upload(logicalStoragePath, buffer, {
           upsert: true
@@ -1102,9 +1102,9 @@ var FirestoreStorage = class {
   }
   async moveFile(oldStoragePath, newStoragePath) {
     if (!oldStoragePath || !newStoragePath || oldStoragePath === newStoragePath) return;
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
-      const bucketName = getSupabaseBucketName();
+      const bucketName = getSupabaseBucketName2();
       try {
         const { error } = await supabase.storage.from(bucketName).move(oldStoragePath, newStoragePath);
         if (error) {
@@ -1141,10 +1141,10 @@ var FirestoreStorage = class {
     return path.join(this.storageBaseDir, ...storagePath.split("/"));
   }
   async deleteFile(storagePath) {
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin2();
     if (supabase) {
       try {
-        await supabase.storage.from(getSupabaseBucketName()).remove([storagePath]);
+        await supabase.storage.from(getSupabaseBucketName2()).remove([storagePath]);
       } catch (err) {
         console.warn("[Supabase Storage] Error deleting file from Supabase:", err.message);
       }
@@ -1402,7 +1402,7 @@ function setupAuth(app2) {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
-      const supabase = getSupabaseAdmin();
+      const supabase = getSupabaseAdmin2();
       if (supabase) {
         try {
           const { data: { user: sbUser }, error } = await supabase.auth.getUser(token);
@@ -1434,7 +1434,7 @@ function setupAuth(app2) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        const supabase = getSupabaseAdmin();
+        const supabase = getSupabaseAdmin2();
         if (supabase) {
           const emailToTest = username.includes("@") ? username : `${username}@filevault.local`;
           try {
@@ -1492,7 +1492,7 @@ function setupAuth(app2) {
         return res.status(400).json({ message: "Username already exists" });
       }
       let createdId = void 0;
-      const supabase = getSupabaseAdmin();
+      const supabase = getSupabaseAdmin2();
       if (supabase) {
         const userEmail = email || (username.includes("@") ? username : `${username}@filevault.local`);
         try {
@@ -2115,6 +2115,42 @@ async function registerRoutes(httpServer2, app2) {
     if (req.user || req.isAuthenticated()) return next();
     res.status(401).json({ message: "Unauthorized. Please authenticate." });
   };
+  app2.get("/api/debug-status", async (req, res) => {
+    try {
+      const userId = "1a06da63-2282-4a08-b17e-b57b188ca1ce";
+      const supabase = getSupabaseAdmin();
+      const bucket = getSupabaseBucketName();
+      let usersList = null;
+      let errorMsg = null;
+      let manifestLength = 0;
+      if (supabase) {
+        const { data, error } = await supabase.storage.from(bucket).list("users");
+        usersList = data;
+        errorMsg = error?.message || null;
+        const { data: m } = await supabase.storage.from(bucket).download("users/sakthicud07_gmail_com/.vault_manifest.json");
+        if (m) {
+          const t = await m.text();
+          manifestLength = t.length;
+        }
+      }
+      const userFolder = await storage.getUserFolder(userId);
+      const docs = await storage.getDocuments(userId);
+      res.json({
+        deployedAt: "2026-09-13T22:08:00Z",
+        supabaseActive: !!supabase,
+        bucket,
+        usersList,
+        manifestLength,
+        userFolder,
+        docsCount: docs.length,
+        docs: docs.map((d) => ({ id: d.id, title: d.title, path: d.storagePath })),
+        errorMsg,
+        envServiceKeySet: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message, stack: e.stack });
+    }
+  });
   app2.get("/api/documents", requireAuth, async (req, res) => {
     try {
       const userId = req.user.id;

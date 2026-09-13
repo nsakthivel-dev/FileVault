@@ -48,6 +48,46 @@ export async function registerRoutes(
     res.status(401).json({ message: "Unauthorized. Please authenticate." });
   };
 
+  // Debug endpoint to inspect production storage connectivity
+  app.get("/api/debug-status", async (req, res) => {
+    try {
+      const userId = "1a06da63-2282-4a08-b17e-b57b188ca1ce";
+      const supabase = getSupabaseAdmin();
+      const bucket = getSupabaseBucketName();
+      let usersList: any = null;
+      let errorMsg: string | null = null;
+      let manifestLength = 0;
+      if (supabase) {
+        const { data, error } = await supabase.storage.from(bucket).list("users");
+        usersList = data;
+        errorMsg = error?.message || null;
+        const { data: m } = await supabase.storage.from(bucket).download("users/sakthicud07_gmail_com/.vault_manifest.json");
+        if (m) {
+          const t = await m.text();
+          manifestLength = t.length;
+        }
+      }
+
+      const userFolder = await storage.getUserFolder(userId);
+      const docs = await storage.getDocuments(userId);
+
+      res.json({
+        deployedAt: "2026-09-13T22:08:00Z",
+        supabaseActive: !!supabase,
+        bucket,
+        usersList,
+        manifestLength,
+        userFolder,
+        docsCount: docs.length,
+        docs: docs.map((d) => ({ id: d.id, title: d.title, path: d.storagePath })),
+        errorMsg,
+        envServiceKeySet: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message, stack: e.stack });
+    }
+  });
+
   // ----------------------------------------------------
   // DOCUMENTS ENDPOINTS
   // ----------------------------------------------------
