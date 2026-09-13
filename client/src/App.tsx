@@ -7,8 +7,13 @@ import { Loader2 } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
+import DocumentsPage from "@/pages/documents-page";
+import RecentFilesPage from "@/pages/recent-files-page";
+import SharedLinksPage from "@/pages/shared-links-page";
+import TrashPage from "@/pages/trash-page";
 import DocumentPreviewPage from "@/pages/document-preview-page";
 import SettingsPage from "@/pages/settings-page";
+import VerificationPage from "@/pages/verification-page";
 import { useAuth } from "@/hooks/use-auth";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -34,11 +39,31 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      {/* Public Credential Verification */}
+      <Route path="/verify/:shareId" component={VerificationPage} />
+      <Route path="/v/:shareId" component={VerificationPage} />
+
+      {/* Protected Routes */}
       <Route path="/">
         {() => <ProtectedRoute component={DashboardPage} />}
       </Route>
-      <Route path="/documents">
+      <Route path="/dashboard">
         {() => <ProtectedRoute component={DashboardPage} />}
+      </Route>
+      <Route path="/documents">
+        {() => <ProtectedRoute component={DocumentsPage} />}
+      </Route>
+      <Route path="/recent">
+        {() => <ProtectedRoute component={RecentFilesPage} />}
+      </Route>
+      <Route path="/shared">
+        {() => <ProtectedRoute component={SharedLinksPage} />}
+      </Route>
+      <Route path="/shared-links">
+        {() => <ProtectedRoute component={SharedLinksPage} />}
+      </Route>
+      <Route path="/trash">
+        {() => <ProtectedRoute component={TrashPage} />}
       </Route>
       <Route path="/settings">
         {() => <ProtectedRoute component={SettingsPage} />}

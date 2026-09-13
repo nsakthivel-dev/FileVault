@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { type InsertUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { supabase, isSupabaseClientConfigured } from "@/lib/supabase";
 
 export function useAuth() {
   const queryClient = useQueryClient();
@@ -20,6 +21,18 @@ export function useAuth() {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
+      // Sync with Supabase client if configured and username looks like an email
+      if (isSupabaseClientConfigured && supabase && credentials.username.includes("@")) {
+        try {
+          await supabase.auth.signInWithPassword({
+            email: credentials.username,
+            password: credentials.password,
+          });
+        } catch {
+          // Backend session remains the primary authority
+        }
+      }
+
       const res = await fetch(api.auth.login.path, {
         method: api.auth.login.method,
         headers: { "Content-Type": "application/json" },
@@ -69,6 +82,13 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
+      if (isSupabaseClientConfigured && supabase) {
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          // Ignore
+        }
+      }
       const res = await fetch(api.auth.logout.path, {
         method: api.auth.logout.method,
         credentials: "include",

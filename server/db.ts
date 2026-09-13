@@ -4,11 +4,18 @@ import * as schema from "@shared/schema";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
+export let pool: pg.Pool | null = null;
+export let db: any = null;
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
+if (process.env.DATABASE_URL) {
+  try {
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    db = drizzle(pool, { schema });
+    console.log("PostgreSQL connection initialized via DATABASE_URL");
+  } catch (err) {
+    console.warn("Could not connect to PostgreSQL database:", err);
+  }
+} else {
+  // Graceful fallback for Firestore-first architecture
+  console.log("Running in Cloud Firestore architecture mode (DATABASE_URL not set).");
+}

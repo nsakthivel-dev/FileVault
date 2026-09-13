@@ -26,11 +26,11 @@ export default function AuthPage() {
     return <Redirect to="/" />;
   }
 
-  const onSubmit = async (data: AuthForm) => {
+  const onSubmit = (data: AuthForm) => {
     if (isLogin) {
-      await login.mutateAsync(data);
+      login.mutate(data);
     } else {
-      await register.mutateAsync(data);
+      register.mutate(data);
     }
   };
 

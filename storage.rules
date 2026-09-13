@@ -1,0 +1,41 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAllowedMimeType() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('image/png') ||
+             request.resource.contentType.matches('image/jpeg') ||
+             request.resource.contentType.matches('image/jpg') ||
+             request.resource.contentType.matches('image/webp') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    }
+
+    function isAllowedFileSize() {
+      // 15MB max file size
+      return request.resource.size <= 15 * 1024 * 1024;
+    }
+
+    // User document path hierarchy:
+    // users/{userId}/documents/{documentId}/original
+    match /users/{userId}/documents/{documentId}/original {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isAllowedMimeType() && isAllowedFileSize();
+    }
+
+    // User document path hierarchy (with category or filename):
+    // users/{userId}/documents/{category}/{fileName}
+    match /users/{userId}/documents/{category}/{fileName} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isAllowedMimeType() && isAllowedFileSize();
+    }
+  }
+}

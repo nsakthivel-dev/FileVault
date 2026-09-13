@@ -1,7 +1,14 @@
 .env
+.env.*
+!.env.example
 node_modules
 dist
 .DS_Store
 server/public
 vite.config.ts.*
 *.tar.gz
+*serviceAccountKey*.json
+uploads/
+.local/
+*.log
+out.log
