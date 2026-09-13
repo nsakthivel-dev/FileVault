@@ -1,7 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { 
   ShieldCheck, 
-  ChevronsUpDown, 
   LayoutDashboard, 
   FileText, 
   Clock, 
@@ -62,7 +61,7 @@ export function Sidebar({
       >
         {/* Workspace Brand Selector */}
         <div className="p-4 pb-2">
-          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors group cursor-pointer">
+          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-xs">
             <div className="flex items-center space-x-2.5 min-w-0">
               <div className="h-8 w-8 rounded-xl bg-slate-950 flex items-center justify-center text-white shrink-0 shadow-xs">
                 <ShieldCheck className="h-4 w-4 text-white" />
@@ -72,7 +71,6 @@ export function Sidebar({
                 <p className="text-[11px] text-slate-400 truncate">{username} / enterprise</p>
               </div>
             </div>
-            <ChevronsUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 transition-colors" />
           </div>
 
           {!isDesktop && (
