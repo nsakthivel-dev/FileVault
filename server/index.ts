@@ -117,7 +117,7 @@ app.use((req, res, next) => {
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // If the port is busy, automatically find and use the next available port.
-  if (process.env.NODE_ENV !== "test") {
+  if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
     const initialPort = parseInt(process.env.PORT || "5000", 10);
     const port = await findAvailablePort(initialPort);
     httpServer.listen(port, () => {
