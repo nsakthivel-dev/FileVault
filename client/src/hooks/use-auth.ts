@@ -14,7 +14,11 @@ export function useAuth() {
       const res = await fetch(api.auth.me.path, { credentials: "include" });
       if (res.status === 401) return null;
       if (!res.ok) throw new Error("Failed to fetch user");
-      return api.auth.me.responses[200].parse(await res.json());
+      const user = api.auth.me.responses[200].parse(await res.json());
+      if (typeof window !== "undefined" && user?.id) {
+        localStorage.setItem("filevault_user_id", user.id);
+      }
+      return user;
     },
     staleTime: 60000, // 1 minute
   });
@@ -46,6 +50,9 @@ export function useAuth() {
       return api.auth.login.responses[200].parse(await res.json());
     },
     onSuccess: (data) => {
+      if (typeof window !== "undefined" && data?.id) {
+        localStorage.setItem("filevault_user_id", data.id);
+      }
       queryClient.setQueryData([api.auth.me.path], data);
       queryClient.invalidateQueries({ queryKey: [api.documents.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.stats.get.path] });
@@ -75,6 +82,9 @@ export function useAuth() {
       return api.auth.register.responses[201].parse(await res.json());
     },
     onSuccess: (data) => {
+      if (typeof window !== "undefined" && data?.id) {
+        localStorage.setItem("filevault_user_id", data.id);
+      }
       queryClient.setQueryData([api.auth.me.path], data);
       toast({ title: "Account created", description: "Welcome to Vault!" });
     },
@@ -99,6 +109,9 @@ export function useAuth() {
       if (!res.ok) throw new Error("Logout failed");
     },
     onSuccess: () => {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("filevault_user_id");
+      }
       queryClient.setQueryData([api.auth.me.path], null);
       queryClient.clear();
       toast({ title: "Logged out", description: "You have been securely logged out." });

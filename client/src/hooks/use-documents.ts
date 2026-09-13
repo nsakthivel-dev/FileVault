@@ -11,8 +11,13 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
       const { data } = await supabase.auth.getSession();
       if (data?.session?.access_token) {
         headers["Authorization"] = `Bearer ${data.session.access_token}`;
+        return headers;
       }
     } catch {}
+  }
+  const storedUserId = typeof window !== "undefined" ? localStorage.getItem("filevault_user_id") : null;
+  if (storedUserId) {
+    headers["Authorization"] = `Bearer ${storedUserId}`;
   }
   return headers;
 }

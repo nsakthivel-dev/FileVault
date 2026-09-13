@@ -513,10 +513,34 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {filteredDocs.length === 0 ? (
+                  {isLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <tr key={i} className="animate-pulse">
+                        <td className="py-3.5 px-5">
+                          <div className="flex items-center space-x-3">
+                            <div className="h-9 w-9 rounded-xl bg-slate-100 shrink-0" />
+                            <div className="space-y-1.5 flex-1">
+                              <div className="h-3.5 bg-slate-200 rounded-md w-3/4 max-w-[180px]" />
+                              <div className="h-2.5 bg-slate-100 rounded-md w-1/2 max-w-[120px]" />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4"><div className="h-5 bg-slate-100 rounded-full w-20" /></td>
+                        <td className="py-3.5 px-4"><div className="h-3.5 bg-slate-100 rounded-md w-12" /></td>
+                        <td className="py-3.5 px-4"><div className="h-5 bg-slate-100 rounded-lg w-24" /></td>
+                        <td className="py-3.5 px-4"><div className="h-5 bg-slate-100 rounded-full w-16" /></td>
+                        <td className="py-3.5 px-4"><div className="h-3.5 bg-slate-100 rounded-md w-20" /></td>
+                        <td className="py-3.5 px-5 text-right"><div className="h-6 bg-slate-100 rounded-md w-14 ml-auto" /></td>
+                      </tr>
+                    ))
+                  ) : filteredDocs.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-10 text-slate-400 text-xs">
-                        No documents matched your filters.
+                      <td colSpan={7} className="text-center py-12 text-slate-400 text-xs">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <Folder className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                          <p className="font-medium text-slate-600">No documents found</p>
+                          <p className="text-[11px] text-slate-400">Upload a certificate or document to get started.</p>
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -656,70 +680,96 @@ export default function DashboardPage() {
           ) : (
             /* Grid View */
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredDocs.map((doc) => {
-                const hash = doc.sha256 || "7f8a92cb91834e491298410294109283";
-                const shortHash = `${hash.slice(0, 6)}...${hash.slice(-4)}`;
-                return (
-                  <div
-                    key={doc.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 shadow-xs flex flex-col justify-between space-y-3 min-w-0 overflow-hidden"
-                  >
-                    <div className="flex items-start justify-between gap-2 min-w-0 w-full">
-                      <div className="flex items-center space-x-2.5 min-w-0 flex-1">
-                        <div className="h-9 w-9 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-500 shrink-0">
-                          <FileText className="h-4 w-4" />
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="p-4 rounded-xl border border-slate-200 bg-white animate-pulse space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="h-9 w-9 rounded-lg bg-slate-100 shrink-0" />
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-3.5 bg-slate-200 rounded-md w-3/4" />
+                        <div className="h-2.5 bg-slate-100 rounded-md w-1/2" />
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t border-slate-100 flex justify-between">
+                      <div className="h-3 bg-slate-100 rounded w-16" />
+                      <div className="h-3 bg-slate-100 rounded w-20" />
+                    </div>
+                  </div>
+                ))
+              ) : filteredDocs.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-slate-400 text-xs">
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <Folder className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                    <p className="font-medium text-slate-600">No documents found</p>
+                    <p className="text-[11px] text-slate-400">Upload a certificate or document to get started.</p>
+                  </div>
+                </div>
+              ) : (
+                filteredDocs.map((doc) => {
+                  const hash = doc.sha256 || "7f8a92cb91834e491298410294109283";
+                  const shortHash = `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+                  return (
+                    <div
+                      key={doc.id}
+                      className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 shadow-xs flex flex-col justify-between space-y-3 min-w-0 overflow-hidden"
+                    >
+                      <div className="flex items-start justify-between gap-2 min-w-0 w-full">
+                        <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                          <div className="h-9 w-9 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-500 shrink-0">
+                            <FileText className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 
+                              onClick={() => handleOpenPreview(doc)}
+                              className="font-bold text-xs text-slate-900 truncate block cursor-pointer hover:text-blue-600"
+                              title={doc.originalName}
+                            >
+                              {doc.originalName}
+                            </h4>
+                            <span className="text-[11px] text-slate-400 truncate block" title={getFriendlyCategory(doc.documentType)}>
+                              {getFriendlyCategory(doc.documentType)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 
-                            onClick={() => handleOpenPreview(doc)}
-                            className="font-bold text-xs text-slate-900 truncate block cursor-pointer hover:text-blue-600"
-                            title={doc.originalName}
+
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          <button
+                            onClick={() => togglePinMutation.mutate(doc.id)}
+                            className={`p-1 rounded-md transition-colors ${
+                              doc.isPinned ? "text-amber-500 bg-amber-50" : "text-slate-300 hover:text-slate-600"
+                            }`}
+                            title={doc.isPinned ? "Pinned to Quick Access" : "Pin to Quick Access"}
                           >
-                            {doc.originalName}
-                          </h4>
-                          <span className="text-[11px] text-slate-400 truncate block" title={getFriendlyCategory(doc.documentType)}>
-                            {getFriendlyCategory(doc.documentType)}
+                            <Pin className={`h-3.5 w-3.5 ${doc.isPinned ? "fill-amber-500" : ""}`} />
+                          </button>
+                          <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Verified
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-1.5 shrink-0">
-                        <button
-                          onClick={() => togglePinMutation.mutate(doc.id)}
-                          className={`p-1 rounded-md transition-colors ${
-                            doc.isPinned ? "text-amber-500 bg-amber-50" : "text-slate-300 hover:text-slate-600"
-                          }`}
-                          title={doc.isPinned ? "Pinned to Quick Access" : "Pin to Quick Access"}
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-mono">
+                        <span>{formatBytes(doc.fileSize)}</span>
+                        <button 
+                          onClick={() => handleCopyHash(hash)}
+                          className="text-[10px] hover:text-slate-800 flex items-center gap-1"
                         >
-                          <Pin className={`h-3.5 w-3.5 ${doc.isPinned ? "fill-amber-500" : ""}`} />
+                          {shortHash} <Copy className="h-2.5 w-2.5" />
                         </button>
-                        <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Verified
-                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 text-xs">
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedDocForShare(doc)} className="h-7 text-xs">
+                          <Share2 className="h-3 w-3 mr-1" /> Share
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadDoc(doc)} className="h-7 text-xs">
+                          <Download className="h-3 w-3 mr-1" /> Download
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-mono">
-                      <span>{formatBytes(doc.fileSize)}</span>
-                      <button 
-                        onClick={() => handleCopyHash(hash)}
-                        className="text-[10px] hover:text-slate-800 flex items-center gap-1"
-                      >
-                        {shortHash} <Copy className="h-2.5 w-2.5" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-end space-x-1 pt-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleOpenPreview(doc)} className="h-7 text-xs">
-                        <Eye className="h-3 w-3 mr-1" /> View
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDownloadDoc(doc)} className="h-7 text-xs">
-                        <Download className="h-3 w-3 mr-1" /> Download
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           )}
 
