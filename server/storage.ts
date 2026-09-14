@@ -58,6 +58,7 @@ export interface IStorage {
   createUserFolder(folderName: string): Promise<void>;
   getFilePath(storagePath: string): string;
   ensureLocalFile(storagePath: string): Promise<string | null>;
+  getFileBuffer(storagePath: string): Promise<Buffer | null>;
   deleteFile(storagePath: string): Promise<void>;
 }
 
@@ -904,21 +905,25 @@ export class SupabaseStorage implements IStorage {
     if (supabase) {
       try {
         await this.ensureUserRecordInSupabase(share.ownerId);
-        await supabase.from("shares").insert({
+        const { error } = await supabase.from("shares").upsert({
           id: share.id,
           document_id: share.documentId,
           owner_id: share.ownerId,
           document_name: share.documentName,
           document_type: share.documentType,
-          expires_at: share.expiresAt,
-          access_limit: share.accessLimit,
-          access_count: share.accessCount,
-          status: share.status,
-          allowed_fields: share.allowedFields,
+          expires_at: share.expiresAt || null,
+          access_limit: share.accessLimit || null,
+          access_count: share.accessCount || 0,
+          status: share.status || "ACTIVE",
+          allowed_fields: share.allowedFields || [],
           permission: share.permission || "both",
-          created_at: share.createdAt,
-          updated_at: new Date().toISOString(),
+          created_at: share.createdAt || new Date().toISOString(),
         });
+        if (error) {
+          console.error("[Supabase DB] Error saving share:", error.message);
+        } else {
+          console.log(`[Supabase DB] Successfully registered share "${share.id}" for doc "${share.documentId}"`);
+        }
       } catch (err: any) {
         console.warn("[Supabase DB] Error inserting share:", err.message);
       }
@@ -929,26 +934,36 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getShare(id: string): Promise<ShareRecord | undefined> {
+    if (!id) return undefined;
+    const cleanId = id.trim();
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
-        const { data, error } = await supabase.from("shares").select("*").eq("id", id).maybeSingle();
-        if (!error && data) {
-          return {
-            id: data.id,
-            documentId: data.document_id,
-            ownerId: data.owner_id,
-            documentName: data.document_name,
-            documentType: data.document_type,
-            expiresAt: data.expires_at,
-            accessLimit: data.access_limit,
-            accessCount: data.access_count,
-            status: data.status,
-            allowedFields: data.allowed_fields,
-            permission: data.permission || "both",
-            createdAt: data.created_at,
-            updatedAt: data.updated_at || data.created_at,
-          };
+        const idVariants = [cleanId, cleanId.toLowerCase()];
+        if (!cleanId.startsWith("fv_")) {
+          idVariants.push(`fv_${cleanId}`);
+        }
+        for (const testId of idVariants) {
+          const { data, error } = await supabase.from("shares").select("*").eq("id", testId).maybeSingle();
+          if (!error && data) {
+            const shareRec: ShareRecord = {
+              id: data.id,
+              documentId: data.document_id,
+              ownerId: data.owner_id,
+              documentName: data.document_name,
+              documentType: data.document_type,
+              expiresAt: data.expires_at,
+              accessLimit: data.access_limit,
+              accessCount: data.access_count || 0,
+              status: data.status,
+              allowedFields: data.allowed_fields || [],
+              permission: data.permission || "both",
+              createdAt: data.created_at,
+              updatedAt: data.created_at,
+            };
+            this.shares.set(shareRec.id, shareRec);
+            return shareRec;
+          }
         }
       } catch (err) {
         // Fallback
@@ -1069,12 +1084,14 @@ export class SupabaseStorage implements IStorage {
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
-        await supabase.from("shares").update({
-          status: updated.status,
-          access_count: updated.accessCount,
-          expires_at: updated.expiresAt,
-          updated_at: new Date().toISOString(),
-        }).eq("id", id);
+        const payload: any = {};
+        if (updates.status !== undefined) payload.status = updates.status;
+        if (updates.accessCount !== undefined) payload.access_count = updates.accessCount;
+        if (updates.expiresAt !== undefined) payload.expires_at = updates.expiresAt;
+        if (updates.accessLimit !== undefined) payload.access_limit = updates.accessLimit;
+        if (updates.permission !== undefined) payload.permission = updates.permission;
+        if (updates.allowedFields !== undefined) payload.allowed_fields = updates.allowedFields;
+        await supabase.from("shares").update(payload).eq("id", id);
       } catch (err: any) {
         console.warn("[Supabase DB] Error updating share:", err.message);
       }
@@ -1481,9 +1498,55 @@ export class SupabaseStorage implements IStorage {
     return path.join(this.storageBaseDir, ...cleanPath.split("/"));
   }
 
+  async getFileBuffer(storagePath: string): Promise<Buffer | null> {
+    if (!storagePath) return null;
+    const cleanPath = (storagePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+
+    // 1. Check local file on disk first
+    const localPath = this.getFilePath(cleanPath);
+    if (fs.existsSync(localPath)) {
+      try {
+        const buf = fs.readFileSync(localPath);
+        if (buf.length > 0) return buf;
+      } catch {}
+    }
+
+    // 2. Fetch directly from Supabase Storage
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const buckets = Array.from(new Set([getSupabaseBucketName(), "documents", "filevault_documents"]));
+      const candidates = [
+        cleanPath,
+        cleanPath.startsWith("users/") ? cleanPath.replace(/^users\//, "") : `users/${cleanPath}`,
+      ];
+
+      for (const bucket of buckets) {
+        for (const candidate of candidates) {
+          try {
+            const { data, error } = await supabase.storage.from(bucket).download(candidate);
+            if (!error && data) {
+              const arrayBuffer = await data.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              // Best-effort cache to disk
+              try {
+                fs.mkdirSync(path.dirname(localPath), { recursive: true });
+                fs.writeFileSync(localPath, buffer);
+              } catch {}
+              return buffer;
+            }
+          } catch (downloadErr: any) {
+            console.warn(`[Storage] Candidate download notice for bucket "${bucket}" path "${candidate}":`, downloadErr.message);
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
   async ensureLocalFile(storagePath: string): Promise<string | null> {
     if (!storagePath) return null;
-    const cleanPath = storagePath.replace(/^\/+/, "");
+    const cleanPath = (storagePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
     const localPath = this.getFilePath(cleanPath);
 
     if (fs.existsSync(localPath)) {
@@ -1495,29 +1558,14 @@ export class SupabaseStorage implements IStorage {
       } catch {}
     }
 
-    const supabase = getSupabaseAdmin();
-    if (supabase) {
-      const bucketName = getSupabaseBucketName();
-      // Try candidate paths in Supabase Storage
-      const candidates = [
-        cleanPath,
-        cleanPath.startsWith("users/") ? cleanPath.replace(/^users\//, "") : `users/${cleanPath}`,
-      ];
-
-      for (const candidate of candidates) {
-        try {
-          const { data, error } = await supabase.storage.from(bucketName).download(candidate);
-          if (!error && data) {
-            const arrayBuffer = await data.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            fs.mkdirSync(path.dirname(localPath), { recursive: true });
-            fs.writeFileSync(localPath, buffer);
-            console.log(`[Storage] Successfully restored file "${candidate}" from Supabase to "${localPath}" (${buffer.length} bytes)`);
-            return localPath;
-          }
-        } catch (downloadErr: any) {
-          console.warn(`[Storage] Candidate download notice for "${candidate}":`, downloadErr.message);
-        }
+    const buffer = await this.getFileBuffer(cleanPath);
+    if (buffer) {
+      try {
+        fs.mkdirSync(path.dirname(localPath), { recursive: true });
+        fs.writeFileSync(localPath, buffer);
+        return localPath;
+      } catch {
+        return fs.existsSync(localPath) ? localPath : null;
       }
     }
 

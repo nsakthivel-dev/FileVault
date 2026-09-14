@@ -764,21 +764,25 @@ var SupabaseStorage = class {
     if (supabase) {
       try {
         await this.ensureUserRecordInSupabase(share.ownerId);
-        await supabase.from("shares").insert({
+        const { error } = await supabase.from("shares").upsert({
           id: share.id,
           document_id: share.documentId,
           owner_id: share.ownerId,
           document_name: share.documentName,
           document_type: share.documentType,
-          expires_at: share.expiresAt,
-          access_limit: share.accessLimit,
-          access_count: share.accessCount,
-          status: share.status,
-          allowed_fields: share.allowedFields,
+          expires_at: share.expiresAt || null,
+          access_limit: share.accessLimit || null,
+          access_count: share.accessCount || 0,
+          status: share.status || "ACTIVE",
+          allowed_fields: share.allowedFields || [],
           permission: share.permission || "both",
-          created_at: share.createdAt,
-          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+          created_at: share.createdAt || (/* @__PURE__ */ new Date()).toISOString()
         });
+        if (error) {
+          console.error("[Supabase DB] Error saving share:", error.message);
+        } else {
+          console.log(`[Supabase DB] Successfully registered share "${share.id}" for doc "${share.documentId}"`);
+        }
       } catch (err) {
         console.warn("[Supabase DB] Error inserting share:", err.message);
       }
@@ -787,26 +791,36 @@ var SupabaseStorage = class {
     return share;
   }
   async getShare(id) {
+    if (!id) return void 0;
+    const cleanId = id.trim();
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
-        const { data, error } = await supabase.from("shares").select("*").eq("id", id).maybeSingle();
-        if (!error && data) {
-          return {
-            id: data.id,
-            documentId: data.document_id,
-            ownerId: data.owner_id,
-            documentName: data.document_name,
-            documentType: data.document_type,
-            expiresAt: data.expires_at,
-            accessLimit: data.access_limit,
-            accessCount: data.access_count,
-            status: data.status,
-            allowedFields: data.allowed_fields,
-            permission: data.permission || "both",
-            createdAt: data.created_at,
-            updatedAt: data.updated_at || data.created_at
-          };
+        const idVariants = [cleanId, cleanId.toLowerCase()];
+        if (!cleanId.startsWith("fv_")) {
+          idVariants.push(`fv_${cleanId}`);
+        }
+        for (const testId of idVariants) {
+          const { data, error } = await supabase.from("shares").select("*").eq("id", testId).maybeSingle();
+          if (!error && data) {
+            const shareRec = {
+              id: data.id,
+              documentId: data.document_id,
+              ownerId: data.owner_id,
+              documentName: data.document_name,
+              documentType: data.document_type,
+              expiresAt: data.expires_at,
+              accessLimit: data.access_limit,
+              accessCount: data.access_count || 0,
+              status: data.status,
+              allowedFields: data.allowed_fields || [],
+              permission: data.permission || "both",
+              createdAt: data.created_at,
+              updatedAt: data.created_at
+            };
+            this.shares.set(shareRec.id, shareRec);
+            return shareRec;
+          }
         }
       } catch (err) {
       }
@@ -908,12 +922,14 @@ var SupabaseStorage = class {
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
-        await supabase.from("shares").update({
-          status: updated.status,
-          access_count: updated.accessCount,
-          expires_at: updated.expiresAt,
-          updated_at: (/* @__PURE__ */ new Date()).toISOString()
-        }).eq("id", id);
+        const payload = {};
+        if (updates.status !== void 0) payload.status = updates.status;
+        if (updates.accessCount !== void 0) payload.access_count = updates.accessCount;
+        if (updates.expiresAt !== void 0) payload.expires_at = updates.expiresAt;
+        if (updates.accessLimit !== void 0) payload.access_limit = updates.accessLimit;
+        if (updates.permission !== void 0) payload.permission = updates.permission;
+        if (updates.allowedFields !== void 0) payload.allowed_fields = updates.allowedFields;
+        await supabase.from("shares").update(payload).eq("id", id);
       } catch (err) {
         console.warn("[Supabase DB] Error updating share:", err.message);
       }
@@ -1246,9 +1262,49 @@ var SupabaseStorage = class {
     const cleanPath = (storagePath || "").replace(/^\/+/, "");
     return path.join(this.storageBaseDir, ...cleanPath.split("/"));
   }
+  async getFileBuffer(storagePath) {
+    if (!storagePath) return null;
+    const cleanPath = (storagePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const localPath = this.getFilePath(cleanPath);
+    if (fs.existsSync(localPath)) {
+      try {
+        const buf = fs.readFileSync(localPath);
+        if (buf.length > 0) return buf;
+      } catch {
+      }
+    }
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const buckets = Array.from(/* @__PURE__ */ new Set([getSupabaseBucketName(), "documents", "filevault_documents"]));
+      const candidates = [
+        cleanPath,
+        cleanPath.startsWith("users/") ? cleanPath.replace(/^users\//, "") : `users/${cleanPath}`
+      ];
+      for (const bucket of buckets) {
+        for (const candidate of candidates) {
+          try {
+            const { data, error } = await supabase.storage.from(bucket).download(candidate);
+            if (!error && data) {
+              const arrayBuffer = await data.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              try {
+                fs.mkdirSync(path.dirname(localPath), { recursive: true });
+                fs.writeFileSync(localPath, buffer);
+              } catch {
+              }
+              return buffer;
+            }
+          } catch (downloadErr) {
+            console.warn(`[Storage] Candidate download notice for bucket "${bucket}" path "${candidate}":`, downloadErr.message);
+          }
+        }
+      }
+    }
+    return null;
+  }
   async ensureLocalFile(storagePath) {
     if (!storagePath) return null;
-    const cleanPath = storagePath.replace(/^\/+/, "");
+    const cleanPath = (storagePath || "").replace(/\\/g, "/").replace(/^\/+/, "");
     const localPath = this.getFilePath(cleanPath);
     if (fs.existsSync(localPath)) {
       try {
@@ -1259,27 +1315,14 @@ var SupabaseStorage = class {
       } catch {
       }
     }
-    const supabase = getSupabaseAdmin();
-    if (supabase) {
-      const bucketName = getSupabaseBucketName();
-      const candidates = [
-        cleanPath,
-        cleanPath.startsWith("users/") ? cleanPath.replace(/^users\//, "") : `users/${cleanPath}`
-      ];
-      for (const candidate of candidates) {
-        try {
-          const { data, error } = await supabase.storage.from(bucketName).download(candidate);
-          if (!error && data) {
-            const arrayBuffer = await data.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            fs.mkdirSync(path.dirname(localPath), { recursive: true });
-            fs.writeFileSync(localPath, buffer);
-            console.log(`[Storage] Successfully restored file "${candidate}" from Supabase to "${localPath}" (${buffer.length} bytes)`);
-            return localPath;
-          }
-        } catch (downloadErr) {
-          console.warn(`[Storage] Candidate download notice for "${candidate}":`, downloadErr.message);
-        }
+    const buffer = await this.getFileBuffer(cleanPath);
+    if (buffer) {
+      try {
+        fs.mkdirSync(path.dirname(localPath), { recursive: true });
+        fs.writeFileSync(localPath, buffer);
+        return localPath;
+      } catch {
+        return fs.existsSync(localPath) ? localPath : null;
       }
     }
     return null;
@@ -1718,7 +1761,6 @@ function setupAuth(app2) {
 import multer from "multer";
 import { randomUUID as randomUUID2 } from "crypto";
 import path3 from "path";
-import fs2 from "fs";
 
 // server/services/analyzer.ts
 import { createHash } from "crypto";
@@ -2531,11 +2573,10 @@ async function registerRoutes(httpServer2, app2) {
       if (!doc || doc.ownerId !== req.user.id) {
         return res.status(404).json({ message: "Document not found" });
       }
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs2.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Physical document file not found in storage" });
       }
-      const fileBuffer = fs2.readFileSync(localPath);
       const updated = await storage.updateDocument(doc.id, {
         processingStatus: "processing",
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -2819,8 +2860,8 @@ async function registerRoutes(httpServer2, app2) {
       if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs2.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Physical file not found in storage" });
       }
       await storage.createAuditLog({
@@ -2832,7 +2873,12 @@ async function registerRoutes(httpServer2, app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         status: "SUCCESS"
       });
-      res.download(path3.resolve(localPath), doc.originalName);
+      res.set({
+        "Content-Type": doc.mimeType || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(doc.originalName)}"`,
+        "Content-Length": String(fileBuffer.length)
+      });
+      return res.send(fileBuffer);
     } catch (err) {
       res.status(500).json({ message: err.message || "Download failed" });
     }
@@ -2844,16 +2890,17 @@ async function registerRoutes(httpServer2, app2) {
       if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs2.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Physical file not found in storage" });
       }
       res.set({
         "Content-Type": doc.mimeType || "application/octet-stream",
         "Content-Disposition": `inline; filename="${encodeURIComponent(doc.originalName)}"`,
+        "Content-Length": String(fileBuffer.length),
         "Cache-Control": "private, no-cache, no-store, must-revalidate"
       });
-      res.sendFile(path3.resolve(localPath));
+      return res.send(fileBuffer);
     } catch (err) {
       res.status(500).json({ message: err.message || "Preview failed" });
     }
@@ -2982,16 +3029,17 @@ async function registerRoutes(httpServer2, app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         status: "SUCCESS"
       });
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs2.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Shared document file not found in storage" });
       }
       res.set({
         "Content-Type": doc.mimeType || "application/octet-stream",
         "Content-Disposition": `inline; filename="${encodeURIComponent(doc.originalName)}"`,
-        "Cache-Control": "public, max-age=3600"
+        "Content-Length": String(fileBuffer.length),
+        "Cache-Control": "public, max-age=86400"
       });
-      res.sendFile(path3.resolve(localPath));
+      return res.send(fileBuffer);
     } catch (err) {
       res.status(500).json({ message: err.message || "Failed to preview shared document" });
     }
@@ -3030,11 +3078,16 @@ async function registerRoutes(httpServer2, app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         status: "SUCCESS"
       });
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs2.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Shared document file not found in storage" });
       }
-      res.download(path3.resolve(localPath), doc.originalName);
+      res.set({
+        "Content-Type": doc.mimeType || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(doc.originalName)}"`,
+        "Content-Length": String(fileBuffer.length)
+      });
+      return res.send(fileBuffer);
     } catch (err) {
       res.status(500).json({ message: err.message || "Download failed" });
     }

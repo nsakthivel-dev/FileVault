@@ -387,12 +387,10 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Physical document file not found in storage" });
       }
-
-      const fileBuffer = fs.readFileSync(localPath);
       
       // Update status to processing immediately for background processing
       const updated = await storage.updateDocument(doc.id, {
@@ -746,8 +744,8 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Physical file not found in storage" });
       }
 
@@ -761,7 +759,12 @@ export async function registerRoutes(
         status: "SUCCESS",
       });
 
-      res.download(path.resolve(localPath), doc.originalName);
+      res.set({
+        "Content-Type": doc.mimeType || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(doc.originalName)}"`,
+        "Content-Length": String(fileBuffer.length),
+      });
+      return res.send(fileBuffer);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Download failed" });
     }
@@ -781,18 +784,19 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Physical file not found in storage" });
       }
 
       res.set({
         "Content-Type": doc.mimeType || "application/octet-stream",
         "Content-Disposition": `inline; filename="${encodeURIComponent(doc.originalName)}"`,
+        "Content-Length": String(fileBuffer.length),
         "Cache-Control": "private, no-cache, no-store, must-revalidate",
       });
 
-      res.sendFile(path.resolve(localPath));
+      return res.send(fileBuffer);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Preview failed" });
     }
@@ -970,17 +974,18 @@ export async function registerRoutes(
         status: "SUCCESS",
       });
 
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Shared document file not found in storage" });
       }
 
       res.set({
         "Content-Type": doc.mimeType || "application/octet-stream",
         "Content-Disposition": `inline; filename="${encodeURIComponent(doc.originalName)}"`,
-        "Cache-Control": "public, max-age=3600",
+        "Content-Length": String(fileBuffer.length),
+        "Cache-Control": "public, max-age=86400",
       });
-      res.sendFile(path.resolve(localPath));
+      return res.send(fileBuffer);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to preview shared document" });
     }
@@ -1030,12 +1035,17 @@ export async function registerRoutes(
         status: "SUCCESS",
       });
 
-      const localPath = await storage.ensureLocalFile(doc.storagePath);
-      if (!localPath || !fs.existsSync(localPath)) {
+      const fileBuffer = await storage.getFileBuffer(doc.storagePath);
+      if (!fileBuffer) {
         return res.status(404).json({ message: "Shared document file not found in storage" });
       }
 
-      res.download(path.resolve(localPath), doc.originalName);
+      res.set({
+        "Content-Type": doc.mimeType || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(doc.originalName)}"`,
+        "Content-Length": String(fileBuffer.length),
+      });
+      return res.send(fileBuffer);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Download failed" });
     }
