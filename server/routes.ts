@@ -387,12 +387,12 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const filePath = storage.getFilePath(doc.storagePath);
-      if (!fs.existsSync(filePath)) {
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs.existsSync(localPath)) {
         return res.status(404).json({ message: "Physical document file not found in storage" });
       }
 
-      const fileBuffer = fs.readFileSync(filePath);
+      const fileBuffer = fs.readFileSync(localPath);
       
       // Update status to processing immediately for background processing
       const updated = await storage.updateDocument(doc.id, {
@@ -746,8 +746,8 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const filePath = storage.getFilePath(doc.storagePath);
-      if (!fs.existsSync(filePath)) {
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs.existsSync(localPath)) {
         return res.status(404).json({ message: "Physical file not found in storage" });
       }
 
@@ -761,7 +761,7 @@ export async function registerRoutes(
         status: "SUCCESS",
       });
 
-      res.download(filePath, doc.originalName);
+      res.download(path.resolve(localPath), doc.originalName);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Download failed" });
     }
@@ -781,18 +781,18 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Document not found" });
       }
 
-      const filePath = storage.getFilePath(doc.storagePath);
-      if (!fs.existsSync(filePath)) {
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs.existsSync(localPath)) {
         return res.status(404).json({ message: "Physical file not found in storage" });
       }
 
       res.set({
-        "Content-Type": doc.mimeType,
+        "Content-Type": doc.mimeType || "application/octet-stream",
         "Content-Disposition": `inline; filename="${encodeURIComponent(doc.originalName)}"`,
         "Cache-Control": "private, no-cache, no-store, must-revalidate",
       });
 
-      res.sendFile(path.resolve(filePath));
+      res.sendFile(path.resolve(localPath));
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Preview failed" });
     }
@@ -970,12 +970,17 @@ export async function registerRoutes(
         status: "SUCCESS",
       });
 
-      const filePath = storage.getFilePath(doc.storagePath);
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs.existsSync(localPath)) {
+        return res.status(404).json({ message: "Shared document file not found in storage" });
+      }
+
       res.set({
-        "Content-Type": doc.mimeType,
+        "Content-Type": doc.mimeType || "application/octet-stream",
         "Content-Disposition": `inline; filename="${encodeURIComponent(doc.originalName)}"`,
+        "Cache-Control": "public, max-age=3600",
       });
-      res.sendFile(path.resolve(filePath));
+      res.sendFile(path.resolve(localPath));
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to preview shared document" });
     }
@@ -1025,8 +1030,12 @@ export async function registerRoutes(
         status: "SUCCESS",
       });
 
-      const filePath = storage.getFilePath(doc.storagePath);
-      res.download(filePath, doc.originalName);
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs.existsSync(localPath)) {
+        return res.status(404).json({ message: "Shared document file not found in storage" });
+      }
+
+      res.download(path.resolve(localPath), doc.originalName);
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Download failed" });
     }
@@ -1091,6 +1100,8 @@ export async function registerRoutes(
         canDownload,
         filePreviewUrl: canPreview ? `/api/shares/${share.id}/preview` : null,
         downloadUrl: canDownload ? `/api/shares/${share.id}/download` : null,
+        mimeType: doc.mimeType || null,
+        originalName: doc.originalName || null,
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Verification request failed" });

@@ -15,7 +15,8 @@ if (process.env.DATABASE_URL) {
   } catch (err) {
     console.warn("Could not connect to PostgreSQL database:", err);
   }
+} else if (process.env.SUPABASE_URL) {
+  console.log("Running in Supabase Cloud architecture mode (Storage & Auth powered by Supabase).");
 } else {
-  // Graceful fallback for Firestore-first architecture
-  console.log("Running in Cloud Firestore architecture mode (DATABASE_URL not set).");
+  console.log("Running in Local / Standalone mode.");
 }

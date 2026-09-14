@@ -7,6 +7,7 @@ import { DocumentRecord, ShareRecord } from "@shared/schema";
 import { useSharesForDocument, useCreateShare, useRevokeShare } from "@/hooks/use-documents";
 import { Share2, Copy, Check, Clock, Eye, Trash2, ShieldCheck, AlertTriangle, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
+import { copyToClipboard as robustCopy } from "@/lib/utils";
 
 interface ShareModalProps {
   document: DocumentRecord | null;
@@ -18,6 +19,7 @@ export function ShareModal({ document, isOpen, onClose }: ShareModalProps) {
   const [expiresInHours, setExpiresInHours] = useState<string>("24");
   const [accessLimit, setAccessLimit] = useState<string>("5");
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [justGeneratedId, setJustGeneratedId] = useState<string | null>(null);
 
   const [permission, setPermission] = useState<"view" | "download" | "both">("both");
 
@@ -27,23 +29,34 @@ export function ShareModal({ document, isOpen, onClose }: ShareModalProps) {
 
   if (!document) return null;
 
-  const handleCreateShare = () => {
-    createShareMutation.mutate({
-      documentId: document.id,
-      expiresInHours: expiresInHours === "never" ? null : Number(expiresInHours),
-      accessLimit: accessLimit === "unlimited" ? null : Number(accessLimit),
-      permission,
-    });
-  };
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedLink(id);
-    setTimeout(() => setCopiedLink(null), 2000);
-  };
-
   const getVerificationUrl = (shareId: string) => {
     return `${window.location.origin}/verify/${shareId}`;
+  };
+
+  const copyShareLink = async (text: string, id: string) => {
+    await robustCopy(text);
+    setCopiedLink(id);
+    setTimeout(() => setCopiedLink(null), 2500);
+  };
+
+  const handleCreateShare = () => {
+    createShareMutation.mutate(
+      {
+        documentId: document.id,
+        expiresInHours: expiresInHours === "never" ? null : Number(expiresInHours),
+        accessLimit: accessLimit === "unlimited" ? null : Number(accessLimit),
+        permission,
+      },
+      {
+        onSuccess: async (newShare: ShareRecord) => {
+          const url = getVerificationUrl(newShare.id);
+          await robustCopy(url);
+          setCopiedLink(newShare.id);
+          setJustGeneratedId(newShare.id);
+          setTimeout(() => setCopiedLink(null), 3000);
+        },
+      }
+    );
   };
 
   const shares = sharesQuery.data || [];
@@ -124,6 +137,38 @@ export function ShareModal({ document, isOpen, onClose }: ShareModalProps) {
             >
               {createShareMutation.isPending ? "Generating Share Link..." : "Generate Secure Verification Link"}
             </Button>
+
+            {justGeneratedId && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center text-xs font-semibold text-emerald-800 mb-0.5">
+                    <Check className="h-3.5 w-3.5 mr-1 text-emerald-600 shrink-0" />
+                    Auto-Copied Link to Clipboard!
+                  </div>
+                  <div className="font-mono text-[11px] text-emerald-700 truncate select-all">
+                    {getVerificationUrl(justGeneratedId)}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => copyShareLink(getVerificationUrl(justGeneratedId), justGeneratedId)}
+                  className="bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs h-8 shrink-0 font-medium"
+                >
+                  {copiedLink === justGeneratedId ? (
+                    <>
+                      <Check className="h-3 w-3 mr-1 text-emerald-600" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copy Again
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Existing Shares List */}
@@ -204,7 +249,7 @@ export function ShareModal({ document, isOpen, onClose }: ShareModalProps) {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => copyToClipboard(verificationUrl, share.id)}
+                            onClick={() => copyShareLink(verificationUrl, share.id)}
                             className="h-8 text-xs font-medium rounded-lg flex-1 border-slate-200"
                           >
                             {copiedLink === share.id ? (

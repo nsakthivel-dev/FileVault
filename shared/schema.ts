@@ -331,6 +331,8 @@ export interface PublicVerificationResponse {
   permission?: "view" | "download" | "both";
   filePreviewUrl?: string | null;
   downloadUrl?: string | null;
+  mimeType?: string | null;
+  originalName?: string | null;
 }
 
 // Compatibility mappings

@@ -147,7 +147,7 @@ function mapDocFromSupabase(row) {
     updatedAt: row.updated_at
   };
 }
-var FirestoreStorage = class {
+var SupabaseStorage = class {
   users = /* @__PURE__ */ new Map();
   documents = /* @__PURE__ */ new Map();
   shares = /* @__PURE__ */ new Map();
@@ -1243,7 +1243,46 @@ var FirestoreStorage = class {
     }
   }
   getFilePath(storagePath) {
-    return path.join(this.storageBaseDir, ...storagePath.split("/"));
+    const cleanPath = (storagePath || "").replace(/^\/+/, "");
+    return path.join(this.storageBaseDir, ...cleanPath.split("/"));
+  }
+  async ensureLocalFile(storagePath) {
+    if (!storagePath) return null;
+    const cleanPath = storagePath.replace(/^\/+/, "");
+    const localPath = this.getFilePath(cleanPath);
+    if (fs.existsSync(localPath)) {
+      try {
+        const stat = fs.statSync(localPath);
+        if (stat.size > 0) {
+          return localPath;
+        }
+      } catch {
+      }
+    }
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const bucketName = getSupabaseBucketName();
+      const candidates = [
+        cleanPath,
+        cleanPath.startsWith("users/") ? cleanPath.replace(/^users\//, "") : `users/${cleanPath}`
+      ];
+      for (const candidate of candidates) {
+        try {
+          const { data, error } = await supabase.storage.from(bucketName).download(candidate);
+          if (!error && data) {
+            const arrayBuffer = await data.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            fs.mkdirSync(path.dirname(localPath), { recursive: true });
+            fs.writeFileSync(localPath, buffer);
+            console.log(`[Storage] Successfully restored file "${candidate}" from Supabase to "${localPath}" (${buffer.length} bytes)`);
+            return localPath;
+          }
+        } catch (downloadErr) {
+          console.warn(`[Storage] Candidate download notice for "${candidate}":`, downloadErr.message);
+        }
+      }
+    }
+    return null;
   }
   async deleteFile(storagePath) {
     const supabase = getSupabaseAdmin();
@@ -1264,7 +1303,7 @@ var FirestoreStorage = class {
     }
   }
 };
-var storage = new FirestoreStorage();
+var storage = new SupabaseStorage();
 
 // server/auth.ts
 import passport from "passport";
@@ -1460,8 +1499,10 @@ if (process.env.DATABASE_URL) {
   } catch (err) {
     console.warn("Could not connect to PostgreSQL database:", err);
   }
+} else if (process.env.SUPABASE_URL) {
+  console.log("Running in Supabase Cloud architecture mode (Storage & Auth powered by Supabase).");
 } else {
-  console.log("Running in Cloud Firestore architecture mode (DATABASE_URL not set).");
+  console.log("Running in Local / Standalone mode.");
 }
 
 // server/auth.ts
@@ -2490,11 +2531,11 @@ async function registerRoutes(httpServer2, app2) {
       if (!doc || doc.ownerId !== req.user.id) {
         return res.status(404).json({ message: "Document not found" });
       }
-      const filePath = storage.getFilePath(doc.storagePath);
-      if (!fs2.existsSync(filePath)) {
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs2.existsSync(localPath)) {
         return res.status(404).json({ message: "Physical document file not found in storage" });
       }
-      const fileBuffer = fs2.readFileSync(filePath);
+      const fileBuffer = fs2.readFileSync(localPath);
       const updated = await storage.updateDocument(doc.id, {
         processingStatus: "processing",
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -2778,8 +2819,8 @@ async function registerRoutes(httpServer2, app2) {
       if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
-      const filePath = storage.getFilePath(doc.storagePath);
-      if (!fs2.existsSync(filePath)) {
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs2.existsSync(localPath)) {
         return res.status(404).json({ message: "Physical file not found in storage" });
       }
       await storage.createAuditLog({
@@ -2791,7 +2832,7 @@ async function registerRoutes(httpServer2, app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         status: "SUCCESS"
       });
-      res.download(filePath, doc.originalName);
+      res.download(path3.resolve(localPath), doc.originalName);
     } catch (err) {
       res.status(500).json({ message: err.message || "Download failed" });
     }
@@ -2803,16 +2844,16 @@ async function registerRoutes(httpServer2, app2) {
       if (!doc || !isOwner || doc.isDeleted) {
         return res.status(404).json({ message: "Document not found" });
       }
-      const filePath = storage.getFilePath(doc.storagePath);
-      if (!fs2.existsSync(filePath)) {
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs2.existsSync(localPath)) {
         return res.status(404).json({ message: "Physical file not found in storage" });
       }
       res.set({
-        "Content-Type": doc.mimeType,
+        "Content-Type": doc.mimeType || "application/octet-stream",
         "Content-Disposition": `inline; filename="${encodeURIComponent(doc.originalName)}"`,
         "Cache-Control": "private, no-cache, no-store, must-revalidate"
       });
-      res.sendFile(path3.resolve(filePath));
+      res.sendFile(path3.resolve(localPath));
     } catch (err) {
       res.status(500).json({ message: err.message || "Preview failed" });
     }
@@ -2941,12 +2982,16 @@ async function registerRoutes(httpServer2, app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         status: "SUCCESS"
       });
-      const filePath = storage.getFilePath(doc.storagePath);
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs2.existsSync(localPath)) {
+        return res.status(404).json({ message: "Shared document file not found in storage" });
+      }
       res.set({
-        "Content-Type": doc.mimeType,
-        "Content-Disposition": `inline; filename="${encodeURIComponent(doc.originalName)}"`
+        "Content-Type": doc.mimeType || "application/octet-stream",
+        "Content-Disposition": `inline; filename="${encodeURIComponent(doc.originalName)}"`,
+        "Cache-Control": "public, max-age=3600"
       });
-      res.sendFile(path3.resolve(filePath));
+      res.sendFile(path3.resolve(localPath));
     } catch (err) {
       res.status(500).json({ message: err.message || "Failed to preview shared document" });
     }
@@ -2985,8 +3030,11 @@ async function registerRoutes(httpServer2, app2) {
         timestamp: (/* @__PURE__ */ new Date()).toISOString(),
         status: "SUCCESS"
       });
-      const filePath = storage.getFilePath(doc.storagePath);
-      res.download(filePath, doc.originalName);
+      const localPath = await storage.ensureLocalFile(doc.storagePath);
+      if (!localPath || !fs2.existsSync(localPath)) {
+        return res.status(404).json({ message: "Shared document file not found in storage" });
+      }
+      res.download(path3.resolve(localPath), doc.originalName);
     } catch (err) {
       res.status(500).json({ message: err.message || "Download failed" });
     }
@@ -3038,7 +3086,9 @@ async function registerRoutes(httpServer2, app2) {
         canViewFile: canPreview,
         canDownload,
         filePreviewUrl: canPreview ? `/api/shares/${share.id}/preview` : null,
-        downloadUrl: canDownload ? `/api/shares/${share.id}/download` : null
+        downloadUrl: canDownload ? `/api/shares/${share.id}/download` : null,
+        mimeType: doc.mimeType || null,
+        originalName: doc.originalName || null
       });
     } catch (err) {
       res.status(500).json({ message: err.message || "Verification request failed" });

@@ -57,6 +57,7 @@ export interface IStorage {
   getUserFolder(userId: string): Promise<string>;
   createUserFolder(folderName: string): Promise<void>;
   getFilePath(storagePath: string): string;
+  ensureLocalFile(storagePath: string): Promise<string | null>;
   deleteFile(storagePath: string): Promise<void>;
 }
 
@@ -169,7 +170,7 @@ function mapDocFromSupabase(row: any): DocumentRecord {
   };
 }
 
-export class FirestoreStorage implements IStorage {
+export class SupabaseStorage implements IStorage {
   private users: Map<string, UserRecord & { password?: string }> = new Map();
   private documents: Map<string, DocumentRecord> = new Map();
   private shares: Map<string, ShareRecord> = new Map();
@@ -1476,7 +1477,51 @@ export class FirestoreStorage implements IStorage {
   }
 
   getFilePath(storagePath: string): string {
-    return path.join(this.storageBaseDir, ...storagePath.split("/"));
+    const cleanPath = (storagePath || "").replace(/^\/+/, "");
+    return path.join(this.storageBaseDir, ...cleanPath.split("/"));
+  }
+
+  async ensureLocalFile(storagePath: string): Promise<string | null> {
+    if (!storagePath) return null;
+    const cleanPath = storagePath.replace(/^\/+/, "");
+    const localPath = this.getFilePath(cleanPath);
+
+    if (fs.existsSync(localPath)) {
+      try {
+        const stat = fs.statSync(localPath);
+        if (stat.size > 0) {
+          return localPath;
+        }
+      } catch {}
+    }
+
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const bucketName = getSupabaseBucketName();
+      // Try candidate paths in Supabase Storage
+      const candidates = [
+        cleanPath,
+        cleanPath.startsWith("users/") ? cleanPath.replace(/^users\//, "") : `users/${cleanPath}`,
+      ];
+
+      for (const candidate of candidates) {
+        try {
+          const { data, error } = await supabase.storage.from(bucketName).download(candidate);
+          if (!error && data) {
+            const arrayBuffer = await data.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            fs.mkdirSync(path.dirname(localPath), { recursive: true });
+            fs.writeFileSync(localPath, buffer);
+            console.log(`[Storage] Successfully restored file "${candidate}" from Supabase to "${localPath}" (${buffer.length} bytes)`);
+            return localPath;
+          }
+        } catch (downloadErr: any) {
+          console.warn(`[Storage] Candidate download notice for "${candidate}":`, downloadErr.message);
+        }
+      }
+    }
+
+    return null;
   }
 
   async deleteFile(storagePath: string): Promise<void> {
@@ -1504,4 +1549,6 @@ export class FirestoreStorage implements IStorage {
   }
 }
 
-export const storage = new FirestoreStorage();
+export const SupabaseStorageClass = SupabaseStorage;
+export const FirestoreStorage = SupabaseStorage;
+export const storage = new SupabaseStorage();

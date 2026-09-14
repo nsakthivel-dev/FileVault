@@ -24,6 +24,8 @@ export default function VerificationPage() {
   const [data, setData] = useState<PublicVerificationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     async function loadVerification() {
@@ -183,6 +185,68 @@ export default function VerificationPage() {
             )}
           </div>
         </div>
+
+        {/* Inline Document Preview */}
+        {data.canViewFile && data.filePreviewUrl && (
+          <div className="mb-6 rounded-2xl bg-slate-950/80 border border-slate-800/80 overflow-hidden shadow-inner">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-800/40 border-b border-slate-800/60">
+              <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-[#c9a84c] flex items-center gap-1.5">
+                <Eye className="h-3.5 w-3.5" />
+                Verified Document Attachment
+              </span>
+              <a
+                href={data.filePreviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-slate-400 hover:text-white transition-colors flex items-center gap-1"
+              >
+                Expand <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+
+            <div className="relative min-h-[200px] max-h-[420px] flex items-center justify-center p-3 bg-black/40">
+              {!imageLoaded && !imageFailed && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/70">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#c9a84c] mb-2" />
+                  <span className="text-xs text-slate-400">Loading document image...</span>
+                </div>
+              )}
+
+              {!imageFailed ? (
+                <img
+                  src={data.filePreviewUrl}
+                  alt={data.originalName || data.recipientName || "Verified Document"}
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => {
+                    setImageFailed(true);
+                    setImageLoaded(true);
+                  }}
+                  className={`max-h-[380px] w-auto max-w-full rounded-lg object-contain transition-opacity duration-300 ${
+                    imageLoaded ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              ) : (
+                <div className="py-8 flex flex-col items-center justify-center text-center">
+                  <FileText className="h-10 w-10 text-[#c9a84c] mb-2 opacity-80" />
+                  <p className="text-xs font-semibold text-slate-200">
+                    {data.originalName || "Document Attached"}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {data.mimeType === "application/pdf" ? "PDF Document" : "Secured Vault Document"}
+                  </p>
+                  <a
+                    href={data.filePreviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#c9a84c] hover:underline"
+                  >
+                    Open Document in New Tab <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons if File Access is Allowed */}
         {data.canViewFile && (

@@ -18,15 +18,16 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { copyToClipboard as robustCopy } from "@/lib/utils";
 
 export default function SharedLinksPage() {
   const { data: shares = [], isLoading } = useUserShares();
   const revokeShareMutation = useRevokeShare();
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const copyToClipboard = (shareId: string) => {
+  const copyToClipboard = async (shareId: string) => {
     const url = `${window.location.origin}/verify/${shareId}`;
-    navigator.clipboard.writeText(url);
+    await robustCopy(url);
     setCopiedId(shareId);
     setTimeout(() => setCopiedId(null), 2000);
   };

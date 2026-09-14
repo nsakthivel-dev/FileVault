@@ -3,6 +3,7 @@ import { api, buildUrl } from "@shared/routes";
 import { DocumentRecord, ShareRecord, AuditLogRecord, NotificationRecord } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { supabase, isSupabaseClientConfigured } from "@/lib/supabase";
+import { copyToClipboard } from "@/lib/utils";
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
@@ -433,12 +434,26 @@ export function useCreateShare() {
       }
       return await res.json();
     },
-    onSuccess: (newShare: ShareRecord) => {
+    onSuccess: async (newShare: ShareRecord) => {
       queryClient.invalidateQueries({ queryKey: [api.shares.listForDocument.path, newShare.documentId] });
       queryClient.invalidateQueries({ queryKey: [api.shares.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.stats.get.path] });
       queryClient.invalidateQueries({ queryKey: [api.auditLogs.list.path] });
-      toast({ title: "Share Link Generated", description: "Secure link ready to share." });
+
+      const url = `${window.location.origin}/verify/${newShare.id}`;
+      const copied = await copyToClipboard(url);
+
+      if (copied) {
+        toast({ 
+          title: "Link Generated & Copied!", 
+          description: "Verification link was automatically copied to your clipboard." 
+        });
+      } else {
+        toast({ 
+          title: "Share Link Generated", 
+          description: "Secure link ready to copy and share." 
+        });
+      }
     },
     onError: (error: Error) => {
       toast({ title: "Share Failed", description: error.message, variant: "destructive" });
