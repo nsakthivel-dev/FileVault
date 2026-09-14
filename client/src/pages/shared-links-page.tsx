@@ -61,215 +61,315 @@ export default function SharedLinksPage() {
         </div>
 
         {/* Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           <motion.div 
             whileHover={{ y: -2 }}
-            className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs"
+            className="col-span-1 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs"
           >
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider font-mono">ACTIVE SHARED LINKS</span>
-              <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider font-mono">ACTIVE LINKS</span>
+              <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
                 <Share2 className="h-3.5 w-3.5" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 font-display">{activeShares.length}</div>
-            <p className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live & ready for verification
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 font-display">{activeShares.length}</div>
+            <p className="text-[10px] sm:text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1 truncate">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              Live & ready
             </p>
           </motion.div>
 
           <motion.div 
             whileHover={{ y: -2 }}
-            className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs"
+            className="col-span-1 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs"
           >
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider font-mono">TOTAL RECIPIENT ACCESSES</span>
-              <div className="h-7 w-7 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider font-mono">RECIPIENT VIEWS</span>
+              <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
                 <Eye className="h-3.5 w-3.5" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 font-display">{totalAccesses}</div>
-            <p className="text-[11px] text-slate-500 mt-1">Verified views and downloads</p>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 font-display">{totalAccesses}</div>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1 truncate">Verified accesses</p>
           </motion.div>
 
           <motion.div 
             whileHover={{ y: -2 }}
-            className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs"
+            className="col-span-2 sm:col-span-1 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs"
           >
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider font-mono">CRYPTOGRAPHIC CONTROL</span>
-              <div className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider font-mono">SECURITY INTEGRITY</span>
+              <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
                 <Lock className="h-3.5 w-3.5" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 font-display">Zero-Leak</div>
-            <p className="text-[11px] text-slate-500 mt-1">Single-token hardware enforcement</p>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 font-display">Zero-Leak</div>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1">Single-token cryptographic enforcement</p>
           </motion.div>
         </div>
 
         {/* Shared Links List */}
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-mono">
-              All Active & Past Access Grants
+              Access Grants ({shares.length})
             </h3>
             <span className="text-xs text-slate-400">
-              Showing {shares.length} links
+              {activeShares.length} active
             </span>
           </div>
 
           {shares.length === 0 ? (
-            <div className="p-12 text-center">
+            <div className="p-10 sm:p-12 text-center">
               <div className="h-12 w-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
                 <Share2 className="h-6 w-6" />
               </div>
               <h4 className="text-sm font-semibold text-slate-800">No shared links created yet</h4>
               <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                Open any document in your Vault and click "Share" to generate a controlled verification link with view or download privileges.
+                Open any document in your Vault and click "Share" to generate a controlled verification link.
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50/75 border-b border-slate-100 text-slate-400 font-mono text-[10px] uppercase tracking-wider">
-                    <th className="py-3 px-4">Shared Document</th>
-                    <th className="py-3 px-4">Permission Mode</th>
-                    <th className="py-3 px-4">Verification URL / Token</th>
-                    <th className="py-3 px-4">Access Count</th>
-                    <th className="py-3 px-4">Status & Expiration</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {shares.map((share) => {
-                    const isExpired = share.expiresAt ? new Date() > new Date(share.expiresAt) : false;
-                    const isLimitReached = share.accessLimit !== null && share.accessCount >= share.accessLimit;
-                    const isRevoked = share.status === "REVOKED";
-                    const isActive = !isExpired && !isLimitReached && !isRevoked;
-                    const perm = share.permission || "both";
+            <div>
+              {/* MOBILE SHARED LINK CARDS (< sm breakpoint) */}
+              <div className="sm:hidden divide-y divide-slate-100">
+                {shares.map((share) => {
+                  const isExpired = share.expiresAt ? new Date() > new Date(share.expiresAt) : false;
+                  const isLimitReached = share.accessLimit !== null && share.accessCount >= share.accessLimit;
+                  const isRevoked = share.status === "REVOKED";
+                  const isActive = !isExpired && !isLimitReached && !isRevoked;
+                  const perm = share.permission || "both";
+                  const tokenShort = `FV-${share.id.replace(/^fv_/, "").toUpperCase().slice(0, 8)}`;
 
-                    return (
-                      <motion.tr 
-                        key={share.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="hover:bg-slate-50/80 transition-colors"
-                      >
-                        {/* Document Name */}
-                        <td className="py-3.5 px-4 font-medium text-slate-900">
-                          <div className="flex items-center space-x-2.5">
-                            <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                              <FileText className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="truncate font-semibold text-xs text-slate-900 max-w-[200px]">
-                                {share.documentName || "Vault Document"}
-                              </div>
-                              <span className="text-[10px] text-slate-400 uppercase font-mono">
-                                {share.documentType || "general"}
-                              </span>
-                            </div>
+                  return (
+                    <div key={share.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
+                      {/* Top: Doc info + status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                          <div className="h-9 w-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                            <FileText className="h-4.5 w-4.5" />
                           </div>
-                        </td>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-xs text-slate-900 truncate" title={share.documentName}>
+                              {share.documentName || "Vault Document"}
+                            </h4>
+                            <p className="text-[10px] font-mono text-slate-400 uppercase mt-0.5">
+                              {share.documentType || "general"} • {tokenShort}
+                            </p>
+                          </div>
+                        </div>
 
-                        {/* Permission */}
-                        <td className="py-3.5 px-4">
-                          {perm === "view" && (
-                            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                              <Eye className="h-3 w-3" />
-                              <span>View Only</span>
-                            </span>
-                          )}
-                          {perm === "download" && (
-                            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              <Download className="h-3 w-3" />
-                              <span>Download Only</span>
-                            </span>
-                          )}
-                          {perm === "both" && (
-                            <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <ShieldCheck className="h-3 w-3" />
-                              <span>View & Download</span>
-                            </span>
-                          )}
-                        </td>
+                        {/* Status Badge */}
+                        {isActive ? (
+                          <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 shrink-0">
+                            {isRevoked ? "Revoked" : isExpired ? "Expired" : "Limit Met"}
+                          </span>
+                        )}
+                      </div>
 
-                        {/* Verification Token / Copy */}
-                        <td className="py-3.5 px-4">
-                          <button
-                            onClick={() => copyToClipboard(share.id)}
-                            className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200/80 font-mono text-[11px] text-slate-700 border border-slate-200/60 transition-colors group"
-                            title="Click to copy public link"
+                      {/* Middle: Permission + Access Count */}
+                      <div className="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="text-[11px] text-slate-500 font-medium">Perms:</span>
+                          <span className="text-[11px] font-semibold text-slate-800">
+                            {perm === "view" ? "View Only" : perm === "download" ? "Download Only" : "View & Download"}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] font-mono text-slate-600">
+                          {share.accessCount} / {share.accessLimit === null ? "∞" : share.accessLimit} used
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center space-x-2 pt-1">
+                        <Button
+                          size="sm"
+                          onClick={() => copyToClipboard(share.id)}
+                          className="flex-1 h-8 rounded-xl text-xs font-semibold bg-slate-950 text-white shadow-2xs hover:bg-slate-800"
+                        >
+                          {copiedId === share.id ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5 mr-1" /> Copy Link
+                            </>
+                          )}
+                        </Button>
+
+                        <a 
+                          href={`/verify/${share.id}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                          title="Open Verification Link"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+
+                        {isActive && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={revokeShareMutation.isPending}
+                            onClick={() => revokeShareMutation.mutate({ id: share.id, documentId: share.documentId })}
+                            className="h-8 px-2.5 rounded-xl text-xs text-red-600 border-red-200 hover:bg-red-50"
                           >
-                            <span>FV-{share.id.replace(/^fv_/, "").toUpperCase().slice(0, 8)}</span>
-                            {copiedId === share.id ? (
-                              <Check className="h-3 w-3 text-emerald-600" />
-                            ) : (
-                              <Copy className="h-3 w-3 text-slate-400 group-hover:text-slate-600" />
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* DESKTOP TABLE VIEW (sm:block) */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50/75 border-b border-slate-100 text-slate-400 font-mono text-[10px] uppercase tracking-wider">
+                      <th className="py-3 px-4">Shared Document</th>
+                      <th className="py-3 px-4">Permission Mode</th>
+                      <th className="py-3 px-4">Verification URL / Token</th>
+                      <th className="py-3 px-4">Access Count</th>
+                      <th className="py-3 px-4">Status & Expiration</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {shares.map((share) => {
+                      const isExpired = share.expiresAt ? new Date() > new Date(share.expiresAt) : false;
+                      const isLimitReached = share.accessLimit !== null && share.accessCount >= share.accessLimit;
+                      const isRevoked = share.status === "REVOKED";
+                      const isActive = !isExpired && !isLimitReached && !isRevoked;
+                      const perm = share.permission || "both";
+
+                      return (
+                        <motion.tr 
+                          key={share.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="hover:bg-slate-50/80 transition-colors"
+                        >
+                          {/* Document Name */}
+                          <td className="py-3.5 px-4 font-medium text-slate-900">
+                            <div className="flex items-center space-x-2.5">
+                              <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                <FileText className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate font-semibold text-xs text-slate-900 max-w-[200px]">
+                                  {share.documentName || "Vault Document"}
+                                </div>
+                                <span className="text-[10px] text-slate-400 uppercase font-mono">
+                                  {share.documentType || "general"}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Permission */}
+                          <td className="py-3.5 px-4">
+                            {perm === "view" && (
+                              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                <Eye className="h-3 w-3" />
+                                <span>View Only</span>
+                              </span>
                             )}
-                          </button>
-                        </td>
+                            {perm === "download" && (
+                              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <Download className="h-3 w-3" />
+                                <span>Download Only</span>
+                              </span>
+                            )}
+                            {perm === "both" && (
+                              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <ShieldCheck className="h-3 w-3" />
+                                <span>View & Download</span>
+                              </span>
+                            )}
+                          </td>
 
-                        {/* Access Count */}
-                        <td className="py-3.5 px-4 font-mono text-slate-600">
-                          {share.accessCount} / {share.accessLimit === null ? "∞" : share.accessLimit}
-                          <span className="text-[10px] text-slate-400 block">
-                            {share.accessLimit ? "views allowed" : "unlimited"}
-                          </span>
-                        </td>
-
-                        {/* Status & Expiry */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center space-x-2">
-                            <span className={`h-2 w-2 rounded-full shrink-0 ${
-                              isActive ? "bg-emerald-500" : isRevoked ? "bg-slate-400" : "bg-amber-500"
-                            }`} />
-                            <span className="font-semibold text-xs text-slate-800">
-                              {isRevoked ? "Revoked" : isExpired ? "Expired" : isLimitReached ? "Limit Reached" : "Active"}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">
-                            {share.expiresAt 
-                              ? `Expires: ${format(new Date(share.expiresAt), "MMM d, h:mm a")}` 
-                              : "Never expires"}
-                          </span>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end space-x-1">
-                            {/* Open public page in new tab */}
-                            <a
-                              href={`/verify/${share.id}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                              title="Preview Public Verification Page"
+                          {/* Verification Token / Copy */}
+                          <td className="py-3.5 px-4">
+                            <button
+                              onClick={() => copyToClipboard(share.id)}
+                              className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200/80 font-mono text-[11px] text-slate-700 border border-slate-200/60 transition-colors group"
+                              title="Click to copy public link"
                             >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
+                              <span>FV-{share.id.replace(/^fv_/, "").toUpperCase().slice(0, 8)}</span>
+                              {copiedId === share.id ? (
+                                <Check className="h-3 w-3 text-emerald-600" />
+                              ) : (
+                                <Copy className="h-3 w-3 text-slate-400 group-hover:text-slate-600" />
+                              )}
+                            </button>
+                          </td>
 
-                            {/* Revoke */}
-                            {isActive && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => revokeShareMutation.mutate({ id: share.id, documentId: share.documentId })}
-                                disabled={revokeShareMutation.isPending}
-                                className="h-7 px-2 text-[11px] text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
-                              >
-                                Revoke
-                              </Button>
+                          {/* Access Count */}
+                          <td className="py-3.5 px-4 font-mono text-slate-600">
+                            {share.accessCount} / {share.accessLimit === null ? "∞" : share.accessLimit}
+                            <span className="text-[10px] text-slate-400 block">
+                              {share.accessLimit ? "views allowed" : "unlimited"}
+                            </span>
+                          </td>
+
+                          {/* Status & Expiry */}
+                          <td className="py-3.5 px-4">
+                            {isActive ? (
+                              <div>
+                                <span className="inline-flex items-center text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                  Active Grant
+                                </span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
+                                  {share.expiresAt ? format(new Date(share.expiresAt), "MMM d, h:mm a") : "Never expires"}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                {isRevoked ? "Revoked" : isExpired ? "Expired" : "Limit Reached"}
+                              </span>
                             )}
-                          </div>
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end space-x-1">
+                              <a
+                                href={`/verify/${share.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                                title="Open verification preview"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                              {isActive && (
+                                <button
+                                  onClick={() => revokeShareMutation.mutate({ id: share.id, documentId: share.documentId })}
+                                  disabled={revokeShareMutation.isPending}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                  title="Revoke access immediately"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

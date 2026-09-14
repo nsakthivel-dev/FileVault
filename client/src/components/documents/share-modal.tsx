@@ -63,23 +63,23 @@ export function ShareModal({ document, isOpen, onClose }: ShareModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-xl p-0 overflow-hidden rounded-2xl border-0 shadow-2xl max-h-[90vh] flex flex-col">
-        <div className="p-6 bg-white overflow-y-auto flex-1">
-          <DialogHeader className="mb-5">
+      <DialogContent className="w-[94vw] sm:max-w-xl p-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col z-50">
+        <div className="p-4 sm:p-6 bg-white overflow-y-auto flex-1">
+          <DialogHeader className="mb-4 sm:mb-5">
             <div className="flex items-center space-x-2 text-[#c9a84c] mb-1">
-              <Share2 className="h-5 w-5" />
-              <span className="text-xs uppercase font-bold tracking-widest">Controlled Credential Sharing</span>
+              <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="text-[10px] sm:text-xs uppercase font-bold tracking-widest">Controlled Credential Sharing</span>
             </div>
-            <DialogTitle className="text-2xl font-display font-bold text-slate-900">
+            <DialogTitle className="text-xl sm:text-2xl font-display font-bold text-slate-900">
               Share Document
             </DialogTitle>
-            <DialogDescription className="text-slate-500 text-sm">
+            <DialogDescription className="text-slate-500 text-xs sm:text-sm">
               Generate a secure, time-limited verification link for <span className="font-semibold text-slate-800">"{document.originalName}"</span>. Recipients only see authorized fields.
             </DialogDescription>
           </DialogHeader>
 
           {/* New Share Link Generation */}
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 mb-6 space-y-4">
+          <div className="bg-slate-50 rounded-2xl p-3.5 sm:p-4 border border-slate-200 mb-5 sm:mb-6 space-y-3.5 sm:space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Configure Access Policy</h4>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

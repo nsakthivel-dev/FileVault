@@ -57,10 +57,10 @@ export function Sidebar({
         initial={false}
         animate={{ x: isDesktop ? 0 : isSidebarOpen ? 0 : "-100%" }}
         transition={{ duration: 0.25, ease: "easeOut" }}
-        className="fixed inset-y-0 left-0 w-64 flex flex-col h-screen z-40 bg-[#fbfcfd] border-r border-slate-200/80 shadow-xs lg:sticky lg:translate-x-0 select-none"
+        className="fixed inset-y-0 left-0 w-72 sm:w-64 flex flex-col h-screen z-40 bg-[#fbfcfd] border-r border-slate-200/80 shadow-2xl lg:shadow-xs lg:sticky lg:translate-x-0 select-none pt-safe pb-safe"
       >
         {/* Workspace Brand Selector */}
-        <div className="p-4 pb-2">
+        <div className="p-3.5 sm:p-4 pb-2">
           <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-xs">
             <div className="flex items-center space-x-2.5 min-w-0">
               <div className="h-8 w-8 rounded-xl bg-slate-950 flex items-center justify-center text-white shrink-0 shadow-xs">
@@ -71,16 +71,17 @@ export function Sidebar({
                 <p className="text-[11px] text-slate-400 truncate">{username} / enterprise</p>
               </div>
             </div>
-          </div>
 
-          {!isDesktop && (
-            <button
-              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          )}
+            {!isDesktop && (
+              <button
+                aria-label="Close sidebar menu"
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 tap-highlight-transparent ml-1"
+                onClick={() => setIsSidebarOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Scrollable Navigation Sections */}

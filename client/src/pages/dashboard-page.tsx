@@ -234,31 +234,31 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* TITLE HEADER ROW */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <div className="flex items-center space-x-2.5">
+            <div className="flex items-center space-x-2">
               <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 tracking-tight">
                 Documents Vault
               </h1>
-              <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              <span className="text-[10px] sm:text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                 v2.4 Live
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">
               Encrypted cloud document storage backed by SHA-256 integrity verification.
             </p>
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center space-x-2 sm:space-x-2.5 w-full sm:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExportAudit}
-              className="bg-white border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl h-9 px-3.5 shadow-2xs"
+              className="flex-1 sm:flex-none bg-white border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl h-9 px-2.5 sm:px-3.5 shadow-2xs"
             >
               <Download className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
-              Export Audit
+              <span className="hidden xs:inline">Export</span> Logs
             </Button>
 
             <Button
@@ -266,56 +266,56 @@ export default function DashboardPage() {
               size="sm"
               onClick={handleVerifyAll}
               disabled={isVerifying}
-              className="bg-white border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl h-9 px-3.5 shadow-2xs"
+              className="flex-1 sm:flex-none bg-white border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl h-9 px-2.5 sm:px-3.5 shadow-2xs"
             >
               <RefreshCw className={`mr-1.5 h-3.5 w-3.5 text-slate-500 ${isVerifying ? "animate-spin text-emerald-600" : ""}`} />
-              Verify All
+              Verify
             </Button>
 
             <Button
               size="sm"
               onClick={() => setIsUploadOpen(true)}
-              className="bg-slate-950 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl h-9 px-4 shadow-sm"
+              className="flex-1 sm:flex-none bg-slate-950 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl h-9 px-3 sm:px-4 shadow-sm"
             >
               <Plus className="mr-1.5 h-4 w-4 text-white" />
-              Upload Document
+              Upload
             </Button>
           </div>
         </div>
 
-        {/* TOP 3 METRIC CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* TOP 3 METRIC CARDS (Responsive: 2-column on mobile, 3-column on desktop) */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {/* Card 1: TOTAL VAULTED */}
           <motion.div
             whileHover={{ y: -2 }}
             transition={{ duration: 0.2 }}
-            className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between"
+            className="col-span-1 bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between"
           >
             <div>
               <div className="flex items-start justify-between">
-                <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   TOTAL VAULTED
                 </span>
-                <div className="h-9 w-9 rounded-xl bg-blue-50/80 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-blue-50/80 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
                   <Folder className="h-4 w-4" />
                 </div>
               </div>
 
               <div className="mt-2 flex items-baseline">
-                <span className="text-3xl font-display font-bold text-slate-900 tracking-tight">
+                <span className="text-2xl sm:text-3xl font-display font-bold text-slate-900 tracking-tight">
                   {totalFiles}
                 </span>
-                <span className="ml-2 text-xs font-medium text-slate-500">
-                  verified files
+                <span className="ml-1.5 sm:ml-2 text-[11px] sm:text-xs font-medium text-slate-500">
+                  files
                 </span>
               </div>
             </div>
 
-            <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-medium">
-                {activeCollectionsCount} collections active
+            <div className="mt-3 sm:mt-5 pt-2.5 sm:pt-3.5 border-t border-slate-100 flex items-center justify-between text-[11px] sm:text-xs">
+              <span className="text-slate-500 font-medium truncate">
+                {activeCollectionsCount} collections
               </span>
-              <span className="text-blue-600 font-semibold font-mono">
+              <span className="text-blue-600 font-semibold font-mono hidden xs:inline">
                 100% indexed
               </span>
             </div>
@@ -325,82 +325,81 @@ export default function DashboardPage() {
           <motion.div
             whileHover={{ y: -2 }}
             transition={{ duration: 0.2 }}
-            className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between"
+            className="col-span-1 bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between"
           >
             <div>
               <div className="flex items-start justify-between">
-                <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   INTEGRITY STATUS
                 </span>
-                <div className="h-9 w-9 rounded-xl bg-emerald-50/80 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-emerald-50/80 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
                   <ShieldCheck className="h-4 w-4" />
                 </div>
               </div>
 
               <div className="mt-2 flex items-baseline">
-                <span className="text-3xl font-display font-bold text-emerald-500 tracking-tight">
+                <span className="text-2xl sm:text-3xl font-display font-bold text-emerald-600 tracking-tight">
                   100%
                 </span>
-                <span className="ml-2 text-xs font-medium text-slate-500">
+                <span className="ml-1.5 sm:ml-2 text-[11px] sm:text-xs font-medium text-slate-500">
                   anchored
                 </span>
               </div>
             </div>
 
-            <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
-              <div className="flex items-center space-x-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-slate-600 font-medium">All SHA-256 hashes verified</span>
+            <div className="mt-3 sm:mt-5 pt-2.5 sm:pt-3.5 border-t border-slate-100 flex items-center justify-between text-[11px] sm:text-xs">
+              <div className="flex items-center space-x-1.5 truncate">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-slate-600 font-medium truncate">SHA-256</span>
               </div>
-              <span className="font-mono text-slate-400 text-[11px]">
-                SHA-256
+              <span className="font-mono text-slate-400 text-[10px] sm:text-[11px] hidden xs:inline">
+                Verified
               </span>
             </div>
           </motion.div>
 
-          {/* Card 3: STORAGE QUOTA */}
+          {/* Card 3: STORAGE QUOTA (Spans 2 cols on mobile, 1 col on desktop) */}
           <motion.div
             whileHover={{ y: -2 }}
             transition={{ duration: 0.2 }}
-            className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between"
+            className="col-span-2 lg:col-span-1 bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between"
           >
             <div>
               <div className="flex items-start justify-between">
-                <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   STORAGE QUOTA
                 </span>
-                <div className="h-9 w-9 rounded-xl bg-slate-100/80 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-slate-100/80 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0">
                   <Cloud className="h-4 w-4" />
                 </div>
               </div>
 
-              <div className="mt-2 flex items-baseline">
-                <span className="text-3xl font-display font-bold text-slate-900 tracking-tight">
-                  {storageDisplay}
-                </span>
-                <span className="ml-2 text-xs font-medium text-slate-400 font-mono">
-                  / 10 GB
+              <div className="mt-2 flex items-baseline justify-between">
+                <div className="flex items-baseline">
+                  <span className="text-2xl sm:text-3xl font-display font-bold text-slate-900 tracking-tight">
+                    {storageDisplay}
+                  </span>
+                  <span className="ml-2 text-xs font-medium text-slate-400 font-mono">
+                    / 10 GB
+                  </span>
+                </div>
+                <span className="text-xs font-mono font-bold text-slate-700">
+                  {storageQuotaPercent.toFixed(1)}%
                 </span>
               </div>
             </div>
 
-            <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
-              {/* Mini progress bar with point */}
-              <div className="w-32 h-1.5 bg-slate-100 rounded-full relative overflow-visible">
+            <div className="mt-3 sm:mt-5 pt-2.5 sm:pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs">
+              {/* Progress bar */}
+              <div className="w-full h-2 bg-slate-100 rounded-full relative overflow-hidden mr-3">
                 <div 
                   className="h-full bg-slate-900 rounded-full transition-all duration-300"
                   style={{ width: `${storageQuotaPercent}%` }}
                 />
-                {storageQuotaPercent > 0 && (
-                  <div 
-                    className="h-2.5 w-2.5 rounded-full bg-slate-900 border-2 border-white absolute top-1/2 -translate-y-1/2"
-                    style={{ left: `${storageQuotaPercent}%` }}
-                  />
-                )}
               </div>
 
-              <span className="font-mono text-[11px] text-slate-400">
-                supabase-vault-01
+              <span className="font-mono text-[11px] text-slate-400 shrink-0">
+                Cloud Vault
               </span>
             </div>
           </motion.div>
@@ -409,21 +408,21 @@ export default function DashboardPage() {
         {/* VAULT TABLE & DROPZONE CONTAINER */}
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
           {/* Table Controls Bar */}
-          <div className="p-4 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center space-x-2.5">
+          <div className="p-3.5 sm:p-4 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center space-x-2 sm:space-x-2.5 flex-wrap gap-y-2">
               {/* Collection Filter Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs font-semibold bg-slate-50 border-slate-200 rounded-xl px-3 text-slate-700">
-                    <span>
+                  <Button variant="outline" size="sm" className="h-8 text-xs font-semibold bg-slate-50 border-slate-200 rounded-xl px-2.5 sm:px-3 text-slate-700">
+                    <span className="truncate max-w-[130px] sm:max-w-none">
                       {selectedCategory === "all" 
-                        ? `All Collections (${activeCollectionsCount})` 
+                        ? `All (${activeCollectionsCount})` 
                         : getFriendlyCategory(selectedCategory)}
                     </span>
-                    <ChevronDown className="ml-2 h-3.5 w-3.5 text-slate-400" />
+                    <ChevronDown className="ml-1.5 h-3.5 w-3.5 text-slate-400 shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48 rounded-xl shadow-xl">
+                <DropdownMenuContent align="start" className="w-48 rounded-xl shadow-xl z-50">
                   <DropdownMenuItem onClick={() => setSelectedCategory("all")}>
                     All Collections ({activeCollectionsCount})
                   </DropdownMenuItem>
@@ -445,14 +444,14 @@ export default function DashboardPage() {
               {/* Status Filter Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs font-semibold bg-slate-50 border-slate-200 rounded-xl px-3 text-slate-700">
+                  <Button variant="outline" size="sm" className="h-8 text-xs font-semibold bg-slate-50 border-slate-200 rounded-xl px-2.5 sm:px-3 text-slate-700">
                     <span>
                       {selectedStatus === "all" ? "All Statuses" : selectedStatus === "verified" ? "Verified" : "Needs Review"}
                     </span>
-                    <ChevronDown className="ml-2 h-3.5 w-3.5 text-slate-400" />
+                    <ChevronDown className="ml-1.5 h-3.5 w-3.5 text-slate-400 shrink-0" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44 rounded-xl shadow-xl">
+                <DropdownMenuContent align="start" className="w-44 rounded-xl shadow-xl z-50">
                   <DropdownMenuItem onClick={() => setSelectedStatus("all")}>
                     All Statuses
                   </DropdownMenuItem>
@@ -465,8 +464,8 @@ export default function DashboardPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <span className="text-xs font-mono text-slate-400 hidden md:inline ml-2">
-                Showing {filteredDocs.length} vaulted records
+              <span className="text-xs font-mono text-slate-400 hidden lg:inline ml-2">
+                Showing {filteredDocs.length} records
               </span>
             </div>
 
@@ -497,185 +496,326 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Table Rows (when in List Mode) */}
+          {/* Quick-Filter Horizontal Scrollable Pills */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar px-3 sm:px-4 py-2 bg-slate-50/60 border-b border-slate-200/60 touch-pan-x">
+            {[
+              { id: "all", label: `All (${totalFiles})` },
+              { id: "resume", label: "Resumes" },
+              { id: "certificates", label: "Certificates" },
+              { id: "hackathon", label: "Hackathons" },
+              { id: "education", label: "Education" },
+            ].map((chip) => (
+              <button
+                key={chip.id}
+                onClick={() => setSelectedCategory(chip.id)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold shrink-0 transition-all tap-highlight-transparent ${
+                  selectedCategory === chip.id
+                    ? "bg-slate-950 text-white shadow-xs"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Table / List View */}
           {viewMode === "list" ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50/70 border-b border-slate-200/80 text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                  <tr>
-                    <th className="py-3 px-5 font-bold">DOCUMENT</th>
-                    <th className="py-3 px-4 font-bold">CATEGORY</th>
-                    <th className="py-3 px-4 font-bold">SIZE</th>
-                    <th className="py-3 px-4 font-bold">ANCHOR (SHA-256)</th>
-                    <th className="py-3 px-4 font-bold">STATUS</th>
-                    <th className="py-3 px-4 font-bold">MODIFIED</th>
-                    <th className="py-3 px-5 font-bold text-right">ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {isLoading ? (
-                    Array.from({ length: 4 }).map((_, i) => (
-                      <tr key={i} className="animate-pulse">
-                        <td className="py-3.5 px-5">
-                          <div className="flex items-center space-x-3">
-                            <div className="h-9 w-9 rounded-xl bg-slate-100 shrink-0" />
-                            <div className="space-y-1.5 flex-1">
-                              <div className="h-3.5 bg-slate-200 rounded-md w-3/4 max-w-[180px]" />
-                              <div className="h-2.5 bg-slate-100 rounded-md w-1/2 max-w-[120px]" />
+            <div>
+              {/* MOBILE CARD VIEW (< sm breakpoint: phones) */}
+              <div className="sm:hidden divide-y divide-slate-100">
+                {isLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="p-4 space-y-3 animate-pulse">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-10 w-10 rounded-xl bg-slate-200 shrink-0" />
+                        <div className="space-y-1.5 flex-1">
+                          <div className="h-3.5 bg-slate-200 rounded w-3/4" />
+                          <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : filteredDocs.length === 0 ? (
+                  <div className="py-10 text-center text-slate-400 text-xs px-4">
+                    <Folder className="h-8 w-8 text-slate-300 stroke-[1.5] mx-auto mb-2" />
+                    <p className="font-semibold text-slate-700">No documents found</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Tap Upload to add files to your vault.</p>
+                  </div>
+                ) : (
+                  filteredDocs.map((doc) => {
+                    const hash = doc.sha256 || "7f8a92cb91834e491298410294109283";
+                    const shortHash = `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+                    const isCopied = copiedHash === hash;
+                    const isCert = ["certificate", "certificates"].includes((doc.documentType || "").toLowerCase());
+                    const isHackathon = ["hackathon", "achievement", "award"].includes((doc.documentType || "").toLowerCase());
+
+                    return (
+                      <div key={doc.id} className="p-3.5 hover:bg-slate-50 transition-colors space-y-2.5">
+                        {/* Top: Icon + Title + Status */}
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div 
+                            onClick={() => handleOpenPreview(doc)} 
+                            className="flex items-center space-x-3 min-w-0 flex-1 cursor-pointer"
+                          >
+                            <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                              isCert 
+                                ? "bg-blue-50 border-blue-200 text-blue-600" 
+                                : isHackathon 
+                                ? "bg-amber-50 border-amber-200 text-amber-600" 
+                                : "bg-rose-50 border-rose-200 text-rose-500"
+                            }`}>
+                              {isCert ? <Award className="h-5 w-5" /> : isHackathon ? <Zap className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-bold text-xs text-slate-900 truncate block">
+                                {doc.originalName}
+                              </h4>
+                              <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                                {formatBytes(doc.fileSize)} • {format(new Date(doc.uploadedAt), "MMM d, yyyy")}
+                              </p>
                             </div>
                           </div>
-                        </td>
-                        <td className="py-3.5 px-4"><div className="h-5 bg-slate-100 rounded-full w-20" /></td>
-                        <td className="py-3.5 px-4"><div className="h-3.5 bg-slate-100 rounded-md w-12" /></td>
-                        <td className="py-3.5 px-4"><div className="h-5 bg-slate-100 rounded-lg w-24" /></td>
-                        <td className="py-3.5 px-4"><div className="h-5 bg-slate-100 rounded-full w-16" /></td>
-                        <td className="py-3.5 px-4"><div className="h-3.5 bg-slate-100 rounded-md w-20" /></td>
-                        <td className="py-3.5 px-5 text-right"><div className="h-6 bg-slate-100 rounded-md w-14 ml-auto" /></td>
-                      </tr>
-                    ))
-                  ) : filteredDocs.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-12 text-slate-400 text-xs">
-                        <div className="flex flex-col items-center justify-center space-y-2">
-                          <Folder className="h-8 w-8 text-slate-300 stroke-[1.5]" />
-                          <p className="font-medium text-slate-600">No documents found</p>
-                          <p className="text-[11px] text-slate-400">Upload a certificate or document to get started.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredDocs.map((doc) => {
-                      const hash = doc.sha256 || "7f8a92cb91834e491298410294109283";
-                      const shortHash = `${hash.slice(0, 6)}...${hash.slice(-4)}`;
-                      const isCopied = copiedHash === hash;
-                      const categoryLabel = getFriendlyCategory(doc.documentType);
-                      const isCert = ["certificate", "certificates"].includes((doc.documentType || "").toLowerCase());
-                      const isHackathon = ["hackathon", "achievement", "award"].includes((doc.documentType || "").toLowerCase());
 
-                      return (
-                        <tr 
-                          key={doc.id}
-                          className="hover:bg-slate-50/80 transition-colors group"
-                        >
-                          {/* DOCUMENT */}
+                          <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse" />
+                            Verified
+                          </span>
+                        </div>
+
+                        {/* Middle: SHA Hash + Category */}
+                        <div className="flex items-center justify-between text-[11px] pt-1">
+                          <span className="font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {getFriendlyCategory(doc.documentType)}
+                          </span>
+
+                          <button
+                            onClick={() => handleCopyHash(hash)}
+                            className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-slate-100 font-mono text-[10px] text-slate-700 border border-slate-200"
+                            title="Copy SHA-256"
+                          >
+                            <span>{shortHash}</span>
+                            {isCopied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3 text-slate-400" />}
+                          </button>
+                        </div>
+
+                        {/* Bottom Action Bar */}
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => handleOpenPreview(doc)}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1 active:scale-95"
+                            >
+                              <Eye className="h-3.5 w-3.5 text-slate-500" /> View
+                            </button>
+                            <button
+                              onClick={() => setSelectedDocForShare(doc)}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1 active:scale-95"
+                            >
+                              <Share2 className="h-3.5 w-3.5 text-slate-500" /> Share
+                            </button>
+                            <button
+                              onClick={() => handleDownloadDoc(doc)}
+                              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-1 active:scale-95"
+                            >
+                              <Download className="h-3.5 w-3.5 text-slate-500" /> Download
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => togglePinMutation.mutate(doc.id)}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              doc.isPinned ? "text-amber-500 bg-amber-50" : "text-slate-400 hover:bg-slate-100"
+                            }`}
+                            title={doc.isPinned ? "Pinned" : "Pin"}
+                          >
+                            <Pin className={`h-4 w-4 ${doc.isPinned ? "fill-amber-500" : ""}`} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* DESKTOP TABLE VIEW (sm:block) */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-600">
+                  <thead className="bg-slate-50/70 border-b border-slate-200/80 text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                    <tr>
+                      <th className="py-3 px-5 font-bold">DOCUMENT</th>
+                      <th className="py-3 px-4 font-bold">CATEGORY</th>
+                      <th className="py-3 px-4 font-bold">SIZE</th>
+                      <th className="py-3 px-4 font-bold">ANCHOR (SHA-256)</th>
+                      <th className="py-3 px-4 font-bold">STATUS</th>
+                      <th className="py-3 px-4 font-bold">MODIFIED</th>
+                      <th className="py-3 px-5 font-bold text-right">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {isLoading ? (
+                      Array.from({ length: 4 }).map((_, i) => (
+                        <tr key={i} className="animate-pulse">
                           <td className="py-3.5 px-5">
                             <div className="flex items-center space-x-3">
-                              {/* File Type Icon badge */}
-                              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                                isCert 
-                                  ? "bg-blue-50/80 border-blue-200 text-blue-600" 
-                                  : isHackathon 
-                                  ? "bg-amber-50/80 border-amber-200 text-amber-600" 
-                                  : "bg-rose-50/80 border-rose-200 text-rose-500"
-                              }`}>
-                                {isCert ? (
-                                  <Award className="h-4 w-4" />
-                                ) : isHackathon ? (
-                                  <Zap className="h-4 w-4" />
-                                ) : (
-                                  <FileText className="h-4 w-4" />
-                                )}
-                              </div>
-
-                              <div className="min-w-0">
-                                <span 
-                                  onClick={() => handleOpenPreview(doc)}
-                                  className="font-bold text-xs text-slate-900 hover:text-blue-600 cursor-pointer truncate block max-w-xs transition-colors"
-                                  title={doc.originalName}
-                                >
-                                  {doc.originalName}
-                                </span>
-                                <span className="text-[11px] text-slate-400 block truncate max-w-xs">
-                                  {getDocSubtitle(doc)}
-                                </span>
+                              <div className="h-9 w-9 rounded-xl bg-slate-100 shrink-0" />
+                              <div className="space-y-1.5 flex-1">
+                                <div className="h-3.5 bg-slate-200 rounded-md w-3/4 max-w-[180px]" />
+                                <div className="h-2.5 bg-slate-100 rounded-md w-1/2 max-w-[120px]" />
                               </div>
                             </div>
                           </td>
-
-                          {/* CATEGORY */}
-                          <td className="py-3.5 px-4">
-                            <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-                              {categoryLabel}
-                            </span>
-                          </td>
-
-                          {/* SIZE */}
-                          <td className="py-3.5 px-4 font-mono text-[11px] text-slate-700">
-                            {formatBytes(doc.fileSize)}
-                          </td>
-
-                          {/* ANCHOR (SHA-256) */}
-                          <td className="py-3.5 px-4">
-                            <button
-                              onClick={() => handleCopyHash(hash)}
-                              className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 hover:bg-slate-200/80 font-mono text-[11px] text-slate-700 transition-colors border border-slate-200/80 group/hash"
-                              title="Click to copy full cryptographic SHA-256 hash"
-                            >
-                              <span>{shortHash}</span>
-                              {isCopied ? (
-                                <Check className="h-3 w-3 text-emerald-600" />
-                              ) : (
-                                <Copy className="h-3 w-3 text-slate-400 group-hover/hash:text-slate-600 transition-colors" />
-                              )}
-                            </button>
-                          </td>
-
-                          {/* STATUS */}
-                          <td className="py-3.5 px-4">
-                            <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5" />
-                              Verified
-                            </span>
-                          </td>
-
-                          {/* MODIFIED */}
-                          <td className="py-3.5 px-4 text-[11px] text-slate-500">
-                            {format(new Date(doc.uploadedAt), "MMM d, yyyy")}
-                          </td>
-
-                          {/* ACTIONS */}
-                          <td className="py-3.5 px-5 text-right">
-                            <div className="flex items-center justify-end space-x-1">
-                              <button
-                                onClick={() => togglePinMutation.mutate(doc.id)}
-                                title={doc.isPinned ? "Pinned to Quick Access" : "Pin to Quick Access"}
-                                className={`p-1.5 rounded-lg transition-colors ${
-                                  doc.isPinned 
-                                    ? "text-amber-500 bg-amber-50 hover:bg-amber-100" 
-                                    : "text-slate-400 hover:text-slate-800 hover:bg-slate-100"
-                                }`}
-                              >
-                                <Pin className={`h-4 w-4 ${doc.isPinned ? "fill-amber-500" : ""}`} />
-                              </button>
-                              <button
-                                onClick={() => handleOpenPreview(doc)}
-                                title="View in full actual size"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => setSelectedDocForShare(doc)}
-                                title="Share securely"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-                              >
-                                <Share2 className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDownloadDoc(doc)}
-                                title="Download original"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-                              >
-                                <Download className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
+                          <td className="py-3.5 px-4"><div className="h-5 bg-slate-100 rounded-full w-20" /></td>
+                          <td className="py-3.5 px-4"><div className="h-3.5 bg-slate-100 rounded-md w-12" /></td>
+                          <td className="py-3.5 px-4"><div className="h-5 bg-slate-100 rounded-lg w-24" /></td>
+                          <td className="py-3.5 px-4"><div className="h-5 bg-slate-100 rounded-full w-16" /></td>
+                          <td className="py-3.5 px-4"><div className="h-3.5 bg-slate-100 rounded-md w-20" /></td>
+                          <td className="py-3.5 px-5 text-right"><div className="h-6 bg-slate-100 rounded-md w-14 ml-auto" /></td>
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                      ))
+                    ) : filteredDocs.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-12 text-slate-400 text-xs">
+                          <div className="flex flex-col items-center justify-center space-y-2">
+                            <Folder className="h-8 w-8 text-slate-300 stroke-[1.5]" />
+                            <p className="font-medium text-slate-600">No documents found</p>
+                            <p className="text-[11px] text-slate-400">Upload a certificate or document to get started.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDocs.map((doc) => {
+                        const hash = doc.sha256 || "7f8a92cb91834e491298410294109283";
+                        const shortHash = `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+                        const isCopied = copiedHash === hash;
+                        const categoryLabel = getFriendlyCategory(doc.documentType);
+                        const isCert = ["certificate", "certificates"].includes((doc.documentType || "").toLowerCase());
+                        const isHackathon = ["hackathon", "achievement", "award"].includes((doc.documentType || "").toLowerCase());
+
+                        return (
+                          <tr 
+                            key={doc.id}
+                            className="hover:bg-slate-50/80 transition-colors group"
+                          >
+                            {/* DOCUMENT */}
+                            <td className="py-3.5 px-5">
+                              <div className="flex items-center space-x-3">
+                                <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                                  isCert 
+                                    ? "bg-blue-50/80 border-blue-200 text-blue-600" 
+                                    : isHackathon 
+                                    ? "bg-amber-50/80 border-amber-200 text-amber-600" 
+                                    : "bg-rose-50/80 border-rose-200 text-rose-500"
+                                }`}>
+                                  {isCert ? (
+                                    <Award className="h-4 w-4" />
+                                  ) : isHackathon ? (
+                                    <Zap className="h-4 w-4" />
+                                  ) : (
+                                    <FileText className="h-4 w-4" />
+                                  )}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <span 
+                                    onClick={() => handleOpenPreview(doc)}
+                                    className="font-bold text-xs text-slate-900 hover:text-blue-600 cursor-pointer truncate block max-w-xs transition-colors"
+                                    title={doc.originalName}
+                                  >
+                                    {doc.originalName}
+                                  </span>
+                                  <span className="text-[11px] text-slate-400 block truncate max-w-xs">
+                                    {getDocSubtitle(doc)}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* CATEGORY */}
+                            <td className="py-3.5 px-4">
+                              <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+                                {categoryLabel}
+                              </span>
+                            </td>
+
+                            {/* SIZE */}
+                            <td className="py-3.5 px-4 font-mono text-[11px] text-slate-700">
+                              {formatBytes(doc.fileSize)}
+                            </td>
+
+                            {/* ANCHOR (SHA-256) */}
+                            <td className="py-3.5 px-4">
+                              <button
+                                onClick={() => handleCopyHash(hash)}
+                                className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 hover:bg-slate-200/80 font-mono text-[11px] text-slate-700 transition-colors border border-slate-200/80 group/hash"
+                                title="Click to copy full cryptographic SHA-256 hash"
+                              >
+                                <span>{shortHash}</span>
+                                {isCopied ? (
+                                  <Check className="h-3 w-3 text-emerald-600" />
+                                ) : (
+                                  <Copy className="h-3 w-3 text-slate-400 group-hover/hash:text-slate-600 transition-colors" />
+                                )}
+                              </button>
+                            </td>
+
+                            {/* STATUS */}
+                            <td className="py-3.5 px-4">
+                              <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5" />
+                                Verified
+                              </span>
+                            </td>
+
+                            {/* MODIFIED */}
+                            <td className="py-3.5 px-4 text-[11px] text-slate-500">
+                              {format(new Date(doc.uploadedAt), "MMM d, yyyy")}
+                            </td>
+
+                            {/* ACTIONS */}
+                            <td className="py-3.5 px-5 text-right">
+                              <div className="flex items-center justify-end space-x-1">
+                                <button
+                                  onClick={() => togglePinMutation.mutate(doc.id)}
+                                  title={doc.isPinned ? "Pinned to Quick Access" : "Pin to Quick Access"}
+                                  className={`p-1.5 rounded-lg transition-colors ${
+                                    doc.isPinned 
+                                      ? "text-amber-500 bg-amber-50 hover:bg-amber-100" 
+                                      : "text-slate-400 hover:text-slate-800 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  <Pin className={`h-4 w-4 ${doc.isPinned ? "fill-amber-500" : ""}`} />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenPreview(doc)}
+                                  title="View in full actual size"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => setSelectedDocForShare(doc)}
+                                  title="Share securely"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                                >
+                                  <Share2 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadDoc(doc)}
+                                  title="Download original"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             /* Grid View */
@@ -776,16 +916,17 @@ export default function DashboardPage() {
           {/* DROPZONE STRIP AT BOTTOM */}
           <div 
             onClick={() => setIsUploadOpen(true)}
-            className="p-3.5 px-5 bg-slate-50/80 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500 hover:bg-slate-100/80 cursor-pointer transition-colors group"
+            className="p-3.5 px-4 sm:px-5 bg-slate-50/90 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500 hover:bg-slate-100/90 cursor-pointer transition-colors group tap-highlight-transparent"
           >
-            <div className="flex items-center space-x-2">
-              <UploadCloud className="h-4 w-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
-              <span className="text-slate-600 font-medium">
-                Drop files to compute SHA-256 checksum & store with AES-256 encryption
+            <div className="flex items-center space-x-2 truncate mr-2">
+              <UploadCloud className="h-4 w-4 text-slate-500 group-hover:text-slate-800 transition-colors shrink-0" />
+              <span className="text-slate-700 font-medium truncate">
+                <span className="sm:hidden">Tap to upload photos or documents</span>
+                <span className="hidden sm:inline">Drop files to compute SHA-256 checksum & store with AES-256 encryption</span>
               </span>
             </div>
-            <span className="font-mono text-[11px] text-slate-400">
-              Max 50 MB / file
+            <span className="font-mono text-[10px] sm:text-[11px] text-slate-400 shrink-0">
+              Max 50 MB
             </span>
           </div>
         </div>

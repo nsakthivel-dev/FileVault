@@ -96,4 +96,24 @@
   .glass-panel {
     @apply bg-white/80 backdrop-blur-md border border-white/20;
   }
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+  }
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top, 0px), 12px);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .touch-pan-x {
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tap-highlight-transparent {
+    -webkit-tap-highlight-color: transparent;
+  }
 }

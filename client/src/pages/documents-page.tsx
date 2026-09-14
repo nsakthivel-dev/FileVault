@@ -350,16 +350,16 @@ export default function DocumentsPage() {
         {/* VIEW 1: ALL FOLDERS GRID (Top-Level) */}
         {!activeFolder && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+              <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-600">
                 Classified Document Folders ({VAULT_FOLDERS.length})
               </h2>
               <span className="text-xs text-slate-400">
-                Total Files: {(documents || []).length} • Click any folder to inspect files
+                {(documents || []).length} total files • Tap any folder to inspect
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {VAULT_FOLDERS.map((folder) => {
                 const stats = folderStats.get(folder.id) || { count: 0, totalBytes: 0, docs: [] };
                 const IconComponent = folder.icon;
@@ -367,30 +367,30 @@ export default function DocumentsPage() {
                 return (
                   <motion.div
                     key={folder.id}
-                    whileHover={{ y: -3 }}
-                    transition={{ duration: 0.2 }}
+                    whileHover={{ y: -2 }}
+                    transition={{ duration: 0.15 }}
                     onClick={() => {
                       setActiveFolderId(folder.id);
                       setSearchQuery("");
                     }}
-                    className={`bg-white rounded-2xl p-5 border border-slate-200 shadow-sm hover:shadow-md cursor-pointer transition-all ${folder.borderAccent} border-t-4 flex flex-col justify-between`}
+                    className={`bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs hover:shadow-md cursor-pointer transition-all ${folder.borderAccent} border-t-4 flex flex-col justify-between active:scale-[0.99]`}
                   >
                     <div>
                       {/* Top icon and count */}
                       <div className="flex items-start justify-between">
                         <div 
-                          className="h-12 w-12 rounded-xl flex items-center justify-center shadow-sm"
+                          className="h-11 w-11 sm:h-12 sm:w-12 rounded-xl flex items-center justify-center shadow-2xs"
                           style={{ backgroundColor: `${folder.color}15`, color: folder.color }}
                         >
-                          <IconComponent className="h-6 w-6" />
+                          <IconComponent className="h-5 w-5 sm:h-6 sm:w-6" />
                         </div>
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${folder.bgLight} border border-current/20`}>
+                        <span className={`text-[11px] sm:text-xs font-bold px-2.5 py-0.5 sm:py-1 rounded-full ${folder.bgLight} border border-current/20`}>
                           {stats.count} {stats.count === 1 ? "file" : "files"}
                         </span>
                       </div>
 
                       {/* Folder Name & Description */}
-                      <h3 className="font-display font-bold text-base text-slate-900 mt-3.5 group-hover:text-amber-600 transition-colors">
+                      <h3 className="font-display font-bold text-sm sm:text-base text-slate-900 mt-3 group-hover:text-amber-600 transition-colors">
                         {folder.name}
                       </h3>
                       <p className="text-xs text-slate-500 mt-1 leading-relaxed line-clamp-2">
@@ -399,11 +399,11 @@ export default function DocumentsPage() {
                     </div>
 
                     {/* Bottom Metadata & Path */}
-                    <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                      <span className="font-mono text-[11px] text-slate-400 truncate max-w-[170px]" title={`users/${userFolderName}/documents/${folder.id}/`}>
+                    <div className="mt-4 sm:mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                      <span className="font-mono text-[10px] sm:text-[11px] text-slate-400 truncate max-w-[150px] sm:max-w-[170px]" title={`users/${userFolderName}/documents/${folder.id}/`}>
                         📁 .../{folder.id}/
                       </span>
-                      <div className="flex items-center space-x-1 text-slate-600 font-semibold">
+                      <div className="flex items-center space-x-1 text-slate-600 font-semibold text-xs">
                         <span>{formatBytes(stats.totalBytes)}</span>
                         <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                       </div>
@@ -419,30 +419,30 @@ export default function DocumentsPage() {
         {activeFolder && (
           <div className="space-y-4">
             {/* Folder Header Banner */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center space-x-4">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
                 <div 
-                  className="h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm shrink-0"
+                  className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl flex items-center justify-center shadow-xs shrink-0"
                   style={{ backgroundColor: `${activeFolder.color}15`, color: activeFolder.color }}
                 >
-                  <activeFolder.icon className="h-7 w-7" />
+                  <activeFolder.icon className="h-6 w-6 sm:h-7 sm:w-7" />
                 </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h2 className="text-xl font-display font-bold text-slate-900">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                    <h2 className="text-lg sm:text-xl font-display font-bold text-slate-900 truncate">
                       {activeFolder.name}
                     </h2>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${activeFolder.bgLight}`}>
-                      {activeFolderDocs.length} {activeFolderDocs.length === 1 ? "document" : "documents"}
+                    <span className={`text-[11px] sm:text-xs font-bold px-2 py-0.5 rounded-full ${activeFolder.bgLight} shrink-0`}>
+                      {activeFolderDocs.length} {activeFolderDocs.length === 1 ? "file" : "files"}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Storage Path: <span className="font-mono font-medium text-slate-700">users/{userFolderName}/documents/{activeFolder.id}/</span>
+                  <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">
+                    Storage: <span className="font-mono font-medium text-slate-600 truncate">.../documents/{activeFolder.id}/</span>
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 shrink-0">
+              <div className="flex items-center space-x-2 w-full sm:w-auto shrink-0 pt-1 sm:pt-0">
                 <Button
                   variant="outline"
                   size="sm"
@@ -450,16 +450,16 @@ export default function DocumentsPage() {
                     setActiveFolderId(null);
                     setSearchQuery("");
                   }}
-                  className="text-xs font-medium border-slate-300 hover:bg-slate-100"
+                  className="flex-1 sm:flex-none text-xs font-medium border-slate-300 hover:bg-slate-100 h-8 rounded-xl"
                 >
-                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to All Folders
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back
                 </Button>
                 <Button
                   size="sm"
                   onClick={() => setIsUploadOpen(true)}
-                  className="text-xs font-semibold shadow-xs rounded-xl h-8 px-3 bg-slate-950 hover:bg-slate-800 text-white"
+                  className="flex-1 sm:flex-none text-xs font-semibold shadow-xs rounded-xl h-8 px-3 bg-slate-950 hover:bg-slate-800 text-white"
                 >
-                  <Plus className="mr-1 h-3.5 w-3.5 text-white" /> Add Document
+                  <Plus className="mr-1 h-3.5 w-3.5 text-white" /> Add File
                 </Button>
               </div>
             </div>

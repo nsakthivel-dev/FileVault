@@ -179,22 +179,22 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-xl p-0 overflow-hidden rounded-2xl border-0 shadow-2xl max-h-[90vh] flex flex-col">
-        <div className="p-6 bg-white overflow-y-auto flex-1">
-          <DialogHeader className="mb-5">
+      <DialogContent className="w-[94vw] sm:max-w-xl p-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col z-50">
+        <div className="p-4 sm:p-6 bg-white overflow-y-auto flex-1">
+          <DialogHeader className="mb-4 sm:mb-5">
             <div className="flex items-center space-x-2 text-[#c9a84c] mb-1">
-              <Shield className="h-5 w-5" />
-              <span className="text-xs uppercase font-bold tracking-widest">AI Document Intelligence Vault</span>
+              <Shield className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="text-[10px] sm:text-xs uppercase font-bold tracking-widest">AI Intelligence Vault</span>
             </div>
-            <DialogTitle className="text-2xl font-display font-bold text-slate-900 flex items-center justify-between">
+            <DialogTitle className="text-xl sm:text-2xl font-display font-bold text-slate-900 flex items-center justify-between">
               <span>Vault Document Upload</span>
-              <span className="inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+              <span className="inline-flex items-center text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
                 <Sparkles className="w-3 h-3 mr-1 text-[#c9a84c]" />
-                Gemini 3.5 Flash
+                Gemini 3.5
               </span>
             </DialogTitle>
-            <DialogDescription className="text-slate-500 text-sm">
-              Upload resumes, certificates, hackathons, degrees, or internship documents. Gemini AI automatically understands, classifies, and organizes them.
+            <DialogDescription className="text-slate-500 text-xs sm:text-sm">
+              Upload career files or certificates. Gemini AI automatically understands, classifies, and organizes them.
             </DialogDescription>
           </DialogHeader>
 
@@ -203,19 +203,19 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
             <div
               {...getRootProps()}
               className={`
-                border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200
+                border-2 border-dashed rounded-2xl p-4 sm:p-6 text-center cursor-pointer transition-all duration-200 tap-highlight-transparent
                 ${isDragActive ? "border-[#c9a84c] bg-amber-50/30 scale-[0.99]" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/70"}
               `}
             >
               <input {...getInputProps()} />
-              <div className="h-12 w-12 mx-auto mb-2 rounded-full bg-slate-100 flex items-center justify-center">
-                <CloudUpload className={`h-6 w-6 ${isDragActive ? "text-[#c9a84c]" : "text-slate-400"}`} />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-2 rounded-full bg-slate-100 flex items-center justify-center">
+                <CloudUpload className={`h-5 w-5 sm:h-6 sm:w-6 ${isDragActive ? "text-[#c9a84c]" : "text-slate-400"}`} />
               </div>
-              <p className="text-sm font-semibold text-slate-800 mb-0.5">
-                {isDragActive ? "Drop documents here" : "Click to select or drag & drop files"}
+              <p className="text-xs sm:text-sm font-semibold text-slate-800 mb-0.5">
+                {isDragActive ? "Drop documents here" : "Tap to choose photos or files"}
               </p>
-              <p className="text-xs text-slate-400">
-                Supports single or batch upload: PDF, PNG, JPG, JPEG, WEBP, DOCX (up to 15MB each)
+              <p className="text-[11px] text-slate-400">
+                Supports PDF, PNG, JPG, JPEG, WEBP, DOCX (up to 15MB)
               </p>
             </div>
             {fileError && <p className="text-xs text-red-500 font-medium px-1">{fileError}</p>}
