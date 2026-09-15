@@ -113,6 +113,10 @@
     touch-action: pan-x;
     -webkit-overflow-scrolling: touch;
   }
+  .touch-pan-y {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
   .tap-highlight-transparent {
     -webkit-tap-highlight-color: transparent;
   }

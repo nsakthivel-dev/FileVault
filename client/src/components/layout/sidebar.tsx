@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { 
   ShieldCheck, 
@@ -7,7 +8,7 @@ import {
   Share2, 
   Trash2, 
   Plus, 
-  Pin,
+  Pin, 
   LogOut, 
   X,
   FileCheck2
@@ -21,17 +22,43 @@ export function Sidebar({
   isSidebarOpen,
   setIsSidebarOpen,
   isDesktop,
+  mainContentRef,
 }: {
   onOpenUpload: () => void;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
   isDesktop: boolean;
+  mainContentRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const [location] = useLocation();
   const { logout, user } = useAuth();
   const { data: documents } = useDocuments();
   const { data: userShares } = useUserShares();
   const { data: trashDocs } = useTrashDocuments();
+  const touchStartY = useRef<number>(0);
+  const touchLastY = useRef<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isDesktop && e.touches.length > 0) {
+      touchStartY.current = e.touches[0].clientY;
+      touchLastY.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDesktop && e.touches.length > 0 && mainContentRef?.current) {
+      const currentY = e.touches[0].clientY;
+      const deltaY = touchLastY.current - currentY;
+      touchLastY.current = currentY;
+      mainContentRef.current.scrollTop += deltaY;
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (!isDesktop && mainContentRef?.current) {
+      mainContentRef.current.scrollTop += e.deltaY;
+    }
+  };
 
   const totalFiles = documents?.length ?? 0;
   const pinnedDocs = documents?.filter((d) => Boolean(d.isPinned)) ?? [];
@@ -57,7 +84,10 @@ export function Sidebar({
         initial={false}
         animate={{ x: isDesktop ? 0 : isSidebarOpen ? 0 : "-100%" }}
         transition={{ duration: 0.25, ease: "easeOut" }}
-        className="fixed inset-y-0 left-0 w-72 sm:w-64 flex flex-col h-screen z-40 bg-[#fbfcfd] border-r border-slate-200/80 shadow-2xl lg:shadow-xs lg:sticky lg:translate-x-0 select-none pt-safe pb-safe"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onWheel={handleWheel}
+        className="fixed inset-y-0 left-0 w-72 sm:w-64 flex flex-col h-screen z-40 bg-[#fbfcfd] border-r border-slate-200/80 shadow-2xl lg:shadow-xs lg:sticky lg:translate-x-0 select-none pt-safe pb-safe touch-pan-y"
       >
         {/* Workspace Brand Selector */}
         <div className="p-3.5 sm:p-4 pb-2">
@@ -85,7 +115,7 @@ export function Sidebar({
         </div>
 
         {/* Scrollable Navigation Sections */}
-        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
+        <div className="flex-1 lg:overflow-y-auto overflow-y-hidden px-3 py-2 space-y-5">
           {/* VAULT SECTION */}
           <div>
             <div className="px-3 pb-1 text-[11px] font-bold tracking-wider text-slate-400 uppercase">

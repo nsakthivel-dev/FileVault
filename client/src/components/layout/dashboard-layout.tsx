@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { Sidebar } from "./sidebar";
 import { BottomNav } from "./bottom-nav";
@@ -12,9 +12,9 @@ import {
   Clock, 
   ShieldCheck, 
   ChevronRight,
-  LogOut,
-  Trash2,
-  Settings,
+  LogOut, 
+  Trash2, 
+  Settings, 
   X
 } from "lucide-react";
 import {
@@ -35,6 +35,10 @@ export function DashboardLayout({ children, onOpenUpload }: { children: ReactNod
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { user, logout } = useAuth();
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const backdropTouchStartY = useRef<number>(0);
+  const backdropTouchLastY = useRef<number>(0);
+  const backdropIsDragging = useRef<boolean>(false);
 
   const { data: notifications } = useNotifications();
   const markRead = useMarkNotificationRead();
@@ -76,6 +80,45 @@ export function DashboardLayout({ children, onOpenUpload }: { children: ReactNod
 
   const handleOpenUpload = onOpenUpload || (() => setIsUploadOpen(true));
 
+  const handleBackdropTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      backdropTouchStartY.current = e.touches[0].clientY;
+      backdropTouchLastY.current = e.touches[0].clientY;
+      backdropIsDragging.current = false;
+    }
+  };
+
+  const handleBackdropTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length > 0 && mainContentRef.current) {
+      const currentY = e.touches[0].clientY;
+      const deltaY = backdropTouchLastY.current - currentY;
+      backdropTouchLastY.current = currentY;
+      if (Math.abs(currentY - backdropTouchStartY.current) > 6) {
+        backdropIsDragging.current = true;
+      }
+      mainContentRef.current.scrollTop += deltaY;
+    }
+  };
+
+  const handleBackdropTouchEnd = () => {
+    if (!backdropIsDragging.current) {
+      setIsSidebarOpen(false);
+    }
+    backdropIsDragging.current = false;
+  };
+
+  const handleBackdropClick = () => {
+    if (!backdropIsDragging.current) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  const handleBackdropWheel = (e: React.WheelEvent) => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTop += e.deltaY;
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-sans">
       <Sidebar
@@ -83,11 +126,16 @@ export function DashboardLayout({ children, onOpenUpload }: { children: ReactNod
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
         isDesktop={isDesktop}
+        mainContentRef={mainContentRef}
       />
       {isSidebarOpen && !isDesktop && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-30 lg:hidden transition-opacity"
-          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-30 lg:hidden transition-opacity touch-pan-y"
+          onClick={handleBackdropClick}
+          onWheel={handleBackdropWheel}
+          onTouchStart={handleBackdropTouchStart}
+          onTouchMove={handleBackdropTouchMove}
+          onTouchEnd={handleBackdropTouchEnd}
         />
       )}
 
@@ -298,7 +346,10 @@ export function DashboardLayout({ children, onOpenUpload }: { children: ReactNod
         )}
 
         {/* Main Body with bottom padding for mobile BottomNav */}
-        <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 lg:p-7 pb-24 lg:pb-7 bg-[#f8fafc] touch-pan-x">
+        <div 
+          ref={mainContentRef}
+          className="flex-1 overflow-y-auto p-3.5 sm:p-5 lg:p-7 pb-24 lg:pb-7 bg-[#f8fafc] touch-pan-y overscroll-y-contain"
+        >
           <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6">
             {children}
           </div>
