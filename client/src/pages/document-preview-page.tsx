@@ -92,14 +92,14 @@ export default function DocumentPreviewPage() {
   return (
     <div className="h-screen h-[100dvh] w-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden">
       {/* Top Bar Header */}
-      <header className="h-14 flex items-center justify-between px-3 sm:px-6 bg-slate-900/95 border-b border-slate-800 shrink-0 z-20 backdrop-blur">
+      <header className="h-14 flex items-center justify-between px-2.5 sm:px-6 bg-slate-900/95 border-b border-slate-800 shrink-0 z-20 backdrop-blur gap-2">
         {/* Document Info & Back */}
-        <div className="flex items-center space-x-3 min-w-0">
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
           <Link href="/">
             <Button 
               variant="ghost" 
               size="sm"
-              className="text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg shrink-0 px-2 sm:px-3"
+              className="text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg shrink-0 px-2 sm:px-3 h-8"
               title="Return to Vault"
             >
               <ArrowLeft className="h-4 w-4 sm:mr-1" />
@@ -109,13 +109,13 @@ export default function DocumentPreviewPage() {
 
           <div className="h-4 w-px bg-slate-800 hidden sm:block" />
 
-          <div className="flex items-center space-x-2.5 min-w-0">
+          <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0">
             <div className="h-8 w-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
               <FileText className="h-4 w-4 text-accent" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center space-x-2">
-                <h2 className="font-semibold text-xs sm:text-sm truncate text-white max-w-[180px] sm:max-w-md md:max-w-lg" title={document.originalName}>
+              <div className="flex items-center space-x-1.5 sm:space-x-2">
+                <h2 className="font-semibold text-xs sm:text-sm truncate text-white max-w-[120px] xs:max-w-[180px] sm:max-w-md md:max-w-lg" title={document.originalName}>
                   {document.originalName}
                 </h2>
                 {document.documentType && (
@@ -124,7 +124,7 @@ export default function DocumentPreviewPage() {
                   </Badge>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400 truncate">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">
                 {formatBytes(document.fileSize)} • {formatDate(document.uploadedAt)}
               </p>
             </div>
@@ -132,7 +132,7 @@ export default function DocumentPreviewPage() {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+        <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
           {/* Image Controls */}
           {isImage && (
             <div className="hidden sm:flex items-center space-x-1 bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/60 mr-1">
@@ -180,7 +180,7 @@ export default function DocumentPreviewPage() {
             variant="ghost"
             size="sm"
             onClick={() => setIsEdgeToEdge((v) => !v)}
-            className="text-slate-300 hover:text-white hover:bg-slate-800 h-8 px-2 sm:px-2.5 rounded-lg text-xs"
+            className="hidden sm:inline-flex text-slate-300 hover:text-white hover:bg-slate-800 h-8 px-2 sm:px-2.5 rounded-lg text-xs"
             title={isEdgeToEdge ? "Boxed View" : "Expand to Full Width"}
           >
             {isEdgeToEdge ? (
@@ -201,7 +201,7 @@ export default function DocumentPreviewPage() {
             variant="ghost"
             size="sm"
             onClick={toggleFullscreen}
-            className="text-slate-300 hover:text-white hover:bg-slate-800 h-8 px-2 sm:px-2.5 rounded-lg text-xs"
+            className="hidden md:inline-flex text-slate-300 hover:text-white hover:bg-slate-800 h-8 px-2 sm:px-2.5 rounded-lg text-xs"
             title="Toggle Fullscreen"
           >
             <Maximize className="h-3.5 w-3.5 sm:mr-1" />
@@ -213,7 +213,7 @@ export default function DocumentPreviewPage() {
             variant="outline"
             size="sm"
             onClick={handleOpenRaw}
-            className="border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 h-8 px-2 sm:px-2.5 rounded-lg text-xs"
+            className="border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 h-8 px-2 sm:px-2.5 rounded-lg text-xs shrink-0"
             title="Open Document Directly in New Tab"
           >
             <ExternalLink className="h-3.5 w-3.5 sm:mr-1" />
@@ -224,9 +224,9 @@ export default function DocumentPreviewPage() {
           <Button
             onClick={handleDownload}
             size="sm"
-            className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold h-8 px-2.5 sm:px-3 rounded-lg shadow-md shadow-accent/20 text-xs"
+            className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold h-8 px-2.5 sm:px-3 rounded-lg shadow-md shadow-accent/20 text-xs shrink-0 flex items-center gap-1"
           >
-            <Download className="h-3.5 w-3.5 sm:mr-1" />
+            <Download className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden sm:inline">Download</span>
           </Button>
         </div>

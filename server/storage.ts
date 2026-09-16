@@ -936,6 +936,11 @@ export class SupabaseStorage implements IStorage {
   async getShare(id: string): Promise<ShareRecord | undefined> {
     if (!id) return undefined;
     const cleanId = id.trim();
+    const memShare = this.shares.get(cleanId);
+    if (memShare && (memShare.status === "REVOKED" || memShare.status === "LIMIT_REACHED" || memShare.status === "EXPIRED")) {
+      return memShare;
+    }
+
     const supabase = getSupabaseAdmin();
     if (supabase) {
       try {
@@ -954,12 +959,12 @@ export class SupabaseStorage implements IStorage {
               documentType: data.document_type,
               expiresAt: data.expires_at,
               accessLimit: data.access_limit,
-              accessCount: data.access_count || 0,
-              status: data.status,
+              accessCount: Math.max(memShare?.accessCount || 0, data.access_count || 0),
+              status: memShare && memShare.status !== "ACTIVE" ? memShare.status : data.status,
               allowedFields: data.allowed_fields || [],
               permission: data.permission || "both",
               createdAt: data.created_at,
-              updatedAt: data.created_at,
+              updatedAt: data.updated_at || data.created_at,
             };
             this.shares.set(shareRec.id, shareRec);
             return shareRec;

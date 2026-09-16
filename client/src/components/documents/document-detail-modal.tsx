@@ -500,24 +500,24 @@ export function DocumentDetailModal({
           )}
 
           {/* Footer Actions */}
-          <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center space-x-1">
+          <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 sm:space-x-1">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handlePreview}
-                className="h-8 text-xs font-medium rounded-lg text-slate-700 border-slate-200"
+                className="h-8 text-xs font-medium rounded-lg text-slate-700 border-slate-200 justify-center"
               >
-                <Eye className="h-3.5 w-3.5 mr-1" />
+                <Eye className="h-3.5 w-3.5 mr-1 shrink-0" />
                 Preview
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleDownload}
-                className="h-8 text-xs font-medium rounded-lg text-slate-700 border-slate-200"
+                className="h-8 text-xs font-medium rounded-lg text-slate-700 border-slate-200 justify-center"
               >
-                <Download className="h-3.5 w-3.5 mr-1" />
+                <Download className="h-3.5 w-3.5 mr-1 shrink-0" />
                 Download
               </Button>
               <Button
@@ -525,9 +525,9 @@ export function DocumentDetailModal({
                 size="sm"
                 onClick={handleReprocess}
                 disabled={reprocessMutation.isPending}
-                className="h-8 text-xs font-medium rounded-lg text-slate-700 border-slate-200"
+                className="h-8 text-xs font-medium rounded-lg text-slate-700 border-slate-200 justify-center"
               >
-                <RefreshCw className={`h-3.5 w-3.5 mr-1 ${reprocessMutation.isPending ? "animate-spin" : ""}`} />
+                <RefreshCw className={`h-3.5 w-3.5 mr-1 shrink-0 ${reprocessMutation.isPending ? "animate-spin" : ""}`} />
                 Reprocess
               </Button>
               <Button
@@ -537,20 +537,20 @@ export function DocumentDetailModal({
                   onClose();
                   onOpenShare(document);
                 }}
-                className="h-8 text-xs font-medium rounded-lg text-[#c9a84c] border-amber-200 bg-amber-50/30 hover:bg-amber-50"
+                className="h-8 text-xs font-medium rounded-lg text-[#c9a84c] border-amber-200 bg-amber-50/30 hover:bg-amber-50 justify-center"
               >
-                <Share2 className="h-3.5 w-3.5 mr-1" />
+                <Share2 className="h-3.5 w-3.5 mr-1 shrink-0" />
                 Share
               </Button>
             </div>
 
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center justify-end space-x-1 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
               {!isEditing && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleStartEdit}
-                  className="h-8 text-xs font-medium rounded-lg text-slate-600 hover:text-slate-900"
+                  className="h-8 text-xs font-medium rounded-lg text-slate-600 hover:text-slate-900 flex-1 sm:flex-initial"
                 >
                   <Edit3 className="h-3.5 w-3.5 mr-1" />
                   Edit
@@ -563,7 +563,7 @@ export function DocumentDetailModal({
                   onClose();
                   onDelete(document);
                 }}
-                className="h-8 text-xs font-medium rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                className="h-8 text-xs font-medium rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 flex-1 sm:flex-initial"
               >
                 <Trash2 className="h-3.5 w-3.5 mr-1" />
                 Delete

@@ -898,11 +898,11 @@ export default function DashboardPage() {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between pt-1 text-xs">
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedDocForShare(doc)} className="h-7 text-xs">
+                      <div className="flex items-center justify-between pt-1 text-xs gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedDocForShare(doc)} className="h-7 text-xs flex-1 justify-center">
                           <Share2 className="h-3 w-3 mr-1" /> Share
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDownloadDoc(doc)} className="h-7 text-xs">
+                        <Button variant="ghost" size="sm" onClick={() => handleDownloadDoc(doc)} className="h-7 text-xs flex-1 justify-center">
                           <Download className="h-3 w-3 mr-1" /> Download
                         </Button>
                       </div>
