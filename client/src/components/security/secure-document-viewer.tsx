@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback, MouseEvent, TouchEvent } from "react";
-import { Shield, EyeOff, Lock, AlertTriangle, Scan, Eye, ZoomIn, ZoomOut, RotateCw, ShieldAlert } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { EyeOff, Lock, ShieldAlert } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface SecureDocumentViewerProps {
@@ -25,30 +25,21 @@ export function SecureDocumentViewer({
   rotation = 0,
   className = "",
 }: SecureDocumentViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
-  const [naturalWidth, setNaturalWidth] = useState(800);
-  const [naturalHeight, setNaturalHeight] = useState(600);
 
-  // Security states
+  // Security blackout states
   const [isBlackedOut, setIsBlackedOut] = useState(false);
   const [isOutOfFocus, setIsOutOfFocus] = useState(false);
-  const [isMouseOut, setIsMouseOut] = useState(false);
   const [securityAlert, setSecurityAlert] = useState<string | null>(null);
-
-  // Spotlight Lens state (Tracks active focus area)
-  // By default, spotlight lens is active in View-Only mode to make full-page screenshots impossible
-  const [useSpotlight, setUseSpotlight] = useState(isProtected);
-  const [lensPos, setLensPos] = useState({ x: 50, y: 50 }); // percentage
 
   const triggerSecurityAlert = useCallback((reason: string) => {
     setSecurityAlert(reason);
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText("Screen capture prohibited: FileVault View-Only Security Policy.");
+        navigator.clipboard.writeText("Screen capture restricted: FileVault View-Only Security Policy.");
       }
     } catch {}
     setTimeout(() => {
@@ -56,7 +47,8 @@ export function SecureDocumentViewer({
     }, 3500);
   }, []);
 
-  // 1. Draw image and burn-in permanent dual-tone forensic watermark on canvas
+  // 1. Draw image onto canvas with subtle, non-obstructive protection marks
+  // Exactly ONE clean pass: no repeating grid, no stacking layers, 100% document readability
   const renderCanvas = useCallback(
     (img: HTMLImageElement) => {
       const canvas = canvasRef.current;
@@ -71,51 +63,49 @@ export function SecureDocumentViewer({
       canvas.width = w;
       canvas.height = h;
 
-      // Draw original image
+      // Draw crisp original document image
       ctx.clearRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0, w, h);
 
-      // If protected: burn-in indelibly into canvas pixels
       if (isProtected) {
         ctx.save();
-        ctx.translate(w / 2, h / 2);
-        ctx.rotate((-28 * Math.PI) / 180);
-        ctx.translate(-w / 2, -h / 2);
 
-        const fontSize = Math.max(16, Math.floor(w / 45));
-        ctx.font = `bold ${fontSize}px "Courier New", monospace`;
+        // 1. Single subtle diagonal watermark in the center (very low opacity, non-obstructive)
+        ctx.save();
+        ctx.translate(w / 2, h / 2);
+        ctx.rotate((-22 * Math.PI) / 180);
+
+        const centerFontSize = Math.max(16, Math.min(32, Math.floor(w / 40)));
+        ctx.font = `600 ${centerFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
-        const text1 = `FILEVAULT VIEW-ONLY • DO NOT CAPTURE • ${verificationId}`;
-        const text2 = `ID: ${verificationId} • RECIPIENT: ${recipientName.toUpperCase()}`;
+        // Extremely subtle semi-transparent watermark that never obscures document text or signatures
+        ctx.fillStyle = "rgba(71, 85, 105, 0.12)";
+        ctx.fillText(`VIEW ONLY • ${verificationId}`, 0, 0);
+        ctx.restore();
 
-        const rowGap = fontSize * 3.8;
-        const colGap = Math.floor(w / 2.2);
+        // 2. Discrete security footer strip at the very bottom margin
+        const footerFontSize = Math.max(11, Math.min(15, Math.floor(w / 75)));
+        ctx.font = `500 ${footerFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
 
-        // Multi-pass dual-tone watermark (white shadow outline + bold dark core)
-        // This guarantees maximum readability and defacement on BOTH dark and light backgrounds
-        for (let y = -h; y < h * 2; y += rowGap) {
-          for (let x = -w; x < w * 2; x += colGap) {
-            const currentText = (Math.floor(y / rowGap) % 2 === 0) ? text1 : text2;
+        const footerY = h - Math.max(8, Math.floor(h * 0.018));
+        ctx.fillStyle = "rgba(100, 116, 139, 0.35)";
+        ctx.fillText(
+          `Protected View Only • ID: ${verificationId} • Recipient: ${recipientName}`,
+          w / 2,
+          footerY
+        );
 
-            // Crisp light outline
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
-            ctx.lineWidth = 3;
-            ctx.strokeText(currentText, x, y);
-
-            // Dark semi-transparent core
-            ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
-            ctx.fillText(currentText, x, y);
-          }
-        }
         ctx.restore();
       }
     },
     [isProtected, recipientName, verificationId]
   );
 
-  // 2. Fetch and load image into memory
+  // 2. Load image into memory and render onto canvas
   useEffect(() => {
     let active = true;
     setImageLoaded(false);
@@ -126,8 +116,6 @@ export function SecureDocumentViewer({
 
     img.onload = () => {
       if (!active) return;
-      setNaturalWidth(img.naturalWidth || 800);
-      setNaturalHeight(img.naturalHeight || 600);
       renderCanvas(img);
       setImageLoaded(true);
     };
@@ -145,11 +133,10 @@ export function SecureDocumentViewer({
     };
   }, [src, renderCanvas]);
 
-  // 3. Robust Screenshot, Hotkey, and Blur Detection
+  // 3. Hotkey interception and focus-loss shield (without disruptive mouse tracking)
   useEffect(() => {
     if (!isProtected) return;
 
-    // Window focus loss / visibility change
     const handleBlur = () => {
       setIsOutOfFocus(true);
     };
@@ -167,18 +154,9 @@ export function SecureDocumentViewer({
       }
     };
 
-    // Cursor leaves page (triggers when moving mouse to Snipping tool, secondary screen, or taskbar)
-    const handleMouseLeave = () => {
-      setIsMouseOut(true);
-    };
-
-    const handleMouseEnter = () => {
-      setIsMouseOut(false);
-    };
-
-    // KEYDOWN capture phase for instantaneous blackout BEFORE screen grab occurs
+    // Hotkey capture for screenshots, print, save, DevTools
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 1. PrintScreen key (any modifier or standalone)
+      // PrintScreen key
       if (
         e.key === "PrintScreen" ||
         e.code === "PrintScreen" ||
@@ -188,32 +166,32 @@ export function SecureDocumentViewer({
         e.preventDefault();
         e.stopPropagation();
         setIsBlackedOut(true);
-        triggerSecurityAlert("Screenshot blocked: Screen captures are disabled for View-Only files.");
-        setTimeout(() => setIsBlackedOut(false), 1400);
+        triggerSecurityAlert("Screenshot attempt detected: Screen capture is disabled for View-Only files.");
+        setTimeout(() => setIsBlackedOut(false), 1500);
         return false;
       }
 
-      // 2. Windows Snipping Tool: Win + Shift + S
+      // Windows Snipping Tool: Win + Shift + S
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key.toLowerCase() === "s" || e.code === "KeyS")) {
         e.preventDefault();
         e.stopPropagation();
         setIsBlackedOut(true);
         triggerSecurityAlert("Snipping Tool blocked: View-Only documents cannot be captured.");
-        setTimeout(() => setIsBlackedOut(false), 1400);
+        setTimeout(() => setIsBlackedOut(false), 1500);
         return false;
       }
 
-      // 3. macOS Screen Capture: Cmd + Shift + 3 / 4 / 5
+      // macOS Screen Capture: Cmd + Shift + 3 / 4 / 5
       if (e.metaKey && e.shiftKey && ["3", "4", "5", "Digit3", "Digit4", "Digit5"].includes(e.code || e.key)) {
         e.preventDefault();
         e.stopPropagation();
         setIsBlackedOut(true);
         triggerSecurityAlert("macOS screen capture blocked: View-Only documents cannot be captured.");
-        setTimeout(() => setIsBlackedOut(false), 1400);
+        setTimeout(() => setIsBlackedOut(false), 1500);
         return false;
       }
 
-      // 4. Print: Ctrl + P / Cmd + P
+      // Print: Ctrl + P / Cmd + P
       if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "p" || e.code === "KeyP")) {
         e.preventDefault();
         e.stopPropagation();
@@ -221,15 +199,15 @@ export function SecureDocumentViewer({
         return false;
       }
 
-      // 5. Save: Ctrl + S / Cmd + S
+      // Save: Ctrl + S / Cmd + S
       if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "s" || e.code === "KeyS")) {
         e.preventDefault();
         e.stopPropagation();
-        triggerSecurityAlert("Saving disabled: View-Only files cannot be saved locally.");
+        triggerSecurityAlert("Saving disabled: View-Only files cannot be downloaded directly.");
         return false;
       }
 
-      // 6. Developer Tools: F12 or Ctrl+Shift+I / J / C
+      // DevTools: F12 or Ctrl+Shift+I/J/C
       if (
         e.key === "F12" ||
         e.code === "F12" ||
@@ -237,7 +215,7 @@ export function SecureDocumentViewer({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        triggerSecurityAlert("DevTools inspection disabled on View-Only documents.");
+        triggerSecurityAlert("Inspection disabled on View-Only documents.");
         return false;
       }
     };
@@ -255,8 +233,6 @@ export function SecureDocumentViewer({
     window.addEventListener("blur", handleBlur, true);
     window.addEventListener("focus", handleFocus, true);
     document.addEventListener("visibilitychange", handleVisibility, true);
-    document.addEventListener("mouseleave", handleMouseLeave, true);
-    document.addEventListener("mouseenter", handleMouseEnter, true);
     window.addEventListener("keydown", handleKeyDown, true);
     window.addEventListener("beforeprint", handleBeforePrint);
     window.addEventListener("afterprint", handleAfterPrint);
@@ -265,8 +241,6 @@ export function SecureDocumentViewer({
       window.removeEventListener("blur", handleBlur, true);
       window.removeEventListener("focus", handleFocus, true);
       document.removeEventListener("visibilitychange", handleVisibility, true);
-      document.removeEventListener("mouseleave", handleMouseLeave, true);
-      document.removeEventListener("mouseenter", handleMouseEnter, true);
       window.removeEventListener("keydown", handleKeyDown, true);
       window.removeEventListener("beforeprint", handleBeforePrint);
       window.removeEventListener("afterprint", handleAfterPrint);
@@ -274,63 +248,18 @@ export function SecureDocumentViewer({
     };
   }, [isProtected, triggerSecurityAlert]);
 
-  // 4. Handle Spotlight Lens movement
-  const handlePointerMove = (e: MouseEvent<HTMLDivElement> | TouchEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-
-    let clientX = 0;
-    let clientY = 0;
-
-    if ("touches" in e) {
-      if (e.touches.length === 0) return;
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-
-    const x = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100));
-
-    setLensPos({ x, y });
-  };
-
-  const isShieldActive = isProtected && (isBlackedOut || isOutOfFocus || isMouseOut);
+  const isShieldActive = isProtected && (isBlackedOut || isOutOfFocus);
 
   return (
     <div
-      ref={containerRef}
-      onMouseMove={handlePointerMove}
-      onTouchMove={handlePointerMove}
       onContextMenu={isProtected ? (e) => e.preventDefault() : undefined}
       onDragStart={isProtected ? (e) => e.preventDefault() : undefined}
       onSelectCapture={isProtected ? (e) => e.preventDefault() : undefined}
-      className={`relative select-none touch-none ${
+      className={`relative select-none ${
         isProtected ? "view-only-protected" : ""
       } ${className}`}
     >
-      {/* Spotlight Lens Toggle Control (Floating Toolbar) */}
-      {isProtected && imageLoaded && !imageFailed && (
-        <div className="absolute -top-10 right-2 z-40 flex items-center space-x-2">
-          <button
-            type="button"
-            onClick={() => setUseSpotlight((prev) => !prev)}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-all shadow-md ${
-              useSpotlight
-                ? "bg-[#c9a84c] text-slate-950 hover:bg-[#d8b75b]"
-                : "bg-slate-800/90 text-slate-300 hover:text-white border border-slate-700"
-            }`}
-            title="Toggle Anti-Screenshot Focus Spotlight Lens"
-          >
-            <Scan className="h-3 w-3" />
-            <span>{useSpotlight ? "Spotlight Guard (Active)" : "Enable Spotlight Guard"}</span>
-          </button>
-        </div>
-      )}
-
-      {/* Main Document Canvas Viewport */}
+      {/* Main Document Canvas Viewport - 100% Sharp and Clear */}
       <div
         className={`relative overflow-hidden rounded-xl transition-all duration-150 flex items-center justify-center ${
           isShieldActive ? "filter blur-3xl opacity-0 scale-95" : ""
@@ -342,55 +271,23 @@ export function SecureDocumentViewer({
       >
         <canvas
           ref={canvasRef}
-          className="max-h-[78vh] max-w-[88vw] w-auto h-auto rounded-lg shadow-2xl object-contain block select-none pointer-events-none"
+          className="max-h-[82vh] max-w-[90vw] w-auto h-auto rounded-lg shadow-2xl object-contain block select-none pointer-events-none"
           style={{
             maxWidth: "100%",
             height: "auto",
           }}
         />
 
-        {/* Dynamic Anti-Screenshot Reading Spotlight Mask */}
-        {/* Only reveals the portion under the user's cursor / touch. Screenshots only capture a small fraction! */}
-        {isProtected && useSpotlight && imageLoaded && !imageFailed && (
-          <div
-            className="absolute inset-0 z-25 pointer-events-none transition-all duration-75"
-            style={{
-              background: `radial-gradient(ellipse 260px 140px at ${lensPos.x}% ${lensPos.y}%, transparent 0%, rgba(15, 23, 42, 0.40) 65%, rgba(15, 23, 42, 0.94) 100%)`,
-              backdropFilter: "blur(14px)",
-            }}
-          >
-            {/* Soft Focus Ring around cursor */}
-            <div
-              className="absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 border border-[#c9a84c]/60 rounded-full shadow-[0_0_25px_rgba(201,168,76,0.35)]"
-              style={{
-                left: `${lensPos.x}%`,
-                top: `${lensPos.y}%`,
-                width: "250px",
-                height: "135px",
-              }}
-            />
-          </div>
-        )}
-
-        {/* DOM High-Contrast Watermark Layer (Extra guarantee over the canvas surface) */}
+        {/* Discrete bottom security pill that doesn't cover document content */}
         {isProtected && imageLoaded && !imageFailed && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-30 overflow-hidden select-none flex flex-wrap items-center justify-around opacity-[0.38] rotate-[-26deg] scale-125"
-          >
-            {Array.from({ length: 18 }).map((_, i) => (
-              <div
-                key={i}
-                className="text-[12px] sm:text-xs font-mono font-black tracking-widest text-slate-900 drop-shadow-[0_1px_1px_rgba(255,255,255,0.85)] whitespace-nowrap p-3"
-              >
-                FILEVAULT VIEW ONLY • DO NOT CAPTURE • {verificationId} • {recipientName.toUpperCase()}
-              </div>
-            ))}
+          <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 z-20 px-3 py-0.5 rounded-full bg-slate-950/60 border border-slate-700/50 backdrop-blur-sm text-[10px] font-mono text-slate-300 select-none shadow flex items-center gap-1.5 opacity-80">
+            <Lock className="h-2.5 w-2.5 text-[#c9a84c]" />
+            <span>Protected View Only • {verificationId}</span>
           </div>
         )}
       </div>
 
-      {/* Heavy Blackout Privacy Shield when capture shortcut pressed or focus lost */}
+      {/* Privacy Shield when capture shortcut detected or window unfocused */}
       <AnimatePresence>
         {isShieldActive && (
           <motion.div
@@ -401,7 +298,6 @@ export function SecureDocumentViewer({
             onClick={() => {
               setIsBlackedOut(false);
               setIsOutOfFocus(false);
-              setIsMouseOut(false);
             }}
             className="absolute inset-0 z-50 bg-slate-950/98 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center cursor-pointer rounded-2xl border border-amber-500/30"
           >
@@ -409,17 +305,15 @@ export function SecureDocumentViewer({
               <EyeOff className="h-8 w-8" />
             </div>
             <h3 className="text-white font-display font-bold text-base sm:text-lg mb-1.5 tracking-tight">
-              Screenshot & Capture Protection Active
+              Protected Document View
             </h3>
             <p className="text-slate-400 text-xs max-w-sm leading-relaxed mb-4">
               {isBlackedOut
-                ? "Screen capture shortcut detected. Content is shielded from capture."
-                : isOutOfFocus
-                ? "Document is hidden while this browser window is out of focus."
-                : "Document is protected while the cursor is outside the viewing frame."}
+                ? "Capture shortcut detected. Document display is protected."
+                : "Document is shielded while this browser window is out of focus."}
             </p>
             <span className="px-4 py-1.5 rounded-full bg-slate-900 text-[#c9a84c] text-xs font-semibold border border-[#c9a84c]/30 shadow-lg hover:bg-slate-800 transition-colors">
-              Click or tap anywhere to resume viewing
+              Click anywhere to resume viewing
             </span>
           </motion.div>
         )}
@@ -438,7 +332,7 @@ export function SecureDocumentViewer({
               <ShieldAlert className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-red-100">Security Warning</p>
+              <p className="text-xs font-bold text-red-100">Security Notice</p>
               <p className="text-[11px] text-red-300 leading-snug mt-0.5">{securityAlert}</p>
             </div>
           </motion.div>

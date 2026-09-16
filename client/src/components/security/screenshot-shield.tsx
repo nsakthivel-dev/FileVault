@@ -184,21 +184,25 @@ export function ScreenshotShield({
         {children}
       </div>
 
-      {/* Forensic Anti-Capture Watermark Grid */}
+      {/* Subtle Non-Obstructive Watermark & Discrete Identification */}
       {isProtected && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-30 overflow-hidden select-none flex flex-wrap items-center justify-around opacity-[0.38] rotate-[-25deg] scale-125"
-        >
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div
-              key={i}
-              className="text-[12px] sm:text-xs font-mono font-black tracking-widest text-slate-900 drop-shadow-[0_1px_1px_rgba(255,255,255,0.85)] whitespace-nowrap p-4"
-            >
+        <>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-20 overflow-hidden select-none flex items-center justify-center opacity-[0.08]"
+          >
+            <div className="text-sm sm:text-base font-mono font-bold tracking-widest text-slate-900 whitespace-nowrap rotate-[-22deg]">
               {defaultWatermark}
             </div>
-          ))}
-        </div>
+          </div>
+
+          <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 z-20 select-none">
+            <div className="px-3 py-0.5 rounded-full bg-slate-950/60 border border-slate-700/50 backdrop-blur-sm text-[10px] font-mono text-slate-300 shadow flex items-center gap-1.5 opacity-80 whitespace-nowrap">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400/80" />
+              <span>Protected View Only • {verificationId || "RESTRICTED"}</span>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Privacy Shield Overlay when window loses focus (blocks Snipping Tool / background grab) */}
