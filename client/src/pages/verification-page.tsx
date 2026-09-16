@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { PublicVerificationResponse } from "@shared/schema";
 import { format } from "date-fns";
 import { ScreenshotShield } from "@/components/security/screenshot-shield";
+import { SecureDocumentViewer } from "@/components/security/secure-document-viewer";
 
 export default function VerificationPage() {
   const { shareId } = useParams<{ shareId: string }>();
@@ -234,54 +235,39 @@ export default function VerificationPage() {
               </button>
             </div>
 
-            <ScreenshotShield
-              isProtected={isViewOnly}
-              recipientName={data.recipientName}
-              verificationId={data.verificationId}
-              className="rounded-b-2xl overflow-hidden"
-            >
-              <div className="relative min-h-[200px] max-h-[420px] flex items-center justify-center p-3 bg-black/40">
-                {!imageLoaded && !imageFailed && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/70 z-10">
-                    <Loader2 className="h-6 w-6 animate-spin text-[#c9a84c] mb-2" />
-                    <span className="text-xs text-slate-400">Loading document image...</span>
-                  </div>
-                )}
-
-                {!imageFailed ? (
-                  <img
-                    src={data.filePreviewUrl}
-                    alt={data.originalName || data.recipientName || "Verified Document"}
-                    onLoad={() => setImageLoaded(true)}
-                    onError={() => {
-                      setImageFailed(true);
-                      setImageLoaded(true);
-                    }}
-                    className={`max-h-[380px] w-auto max-w-full rounded-lg object-contain transition-opacity duration-300 select-none ${
-                      imageLoaded ? "opacity-100" : "opacity-0"
-                    }`}
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="py-8 flex flex-col items-center justify-center text-center">
-                    <FileText className="h-10 w-10 text-[#c9a84c] mb-2 opacity-80" />
-                    <p className="text-xs font-semibold text-slate-200">
-                      {data.originalName || "Document Attached"}
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      {data.mimeType === "application/pdf" ? "PDF Document" : "Secured Vault Document"}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleOpenViewer}
-                      className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#c9a84c] hover:underline cursor-pointer"
-                    >
-                      Open Document in Viewer <Maximize2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                )}
+            {data.mimeType === "application/pdf" ? (
+              <ScreenshotShield
+                isProtected={isViewOnly}
+                recipientName={data.recipientName}
+                verificationId={data.verificationId}
+                className="rounded-b-2xl overflow-hidden p-6 text-center bg-black/40"
+              >
+                <FileText className="h-10 w-10 text-[#c9a84c] mb-2 mx-auto opacity-80" />
+                <p className="text-xs font-semibold text-slate-200">
+                  {data.originalName || "Document Attached"}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1">PDF Document • Protected View</p>
+                <button
+                  type="button"
+                  onClick={handleOpenViewer}
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[#c9a84c] hover:underline cursor-pointer"
+                >
+                  Open in Secure Viewer <Maximize2 className="h-3 w-3" />
+                </button>
+              </ScreenshotShield>
+            ) : (
+              <div className="p-2 sm:p-3 bg-black/40 flex items-center justify-center min-h-[220px] rounded-b-2xl overflow-hidden">
+                <SecureDocumentViewer
+                  src={data.filePreviewUrl}
+                  alt={data.originalName || data.recipientName || "Verified Document"}
+                  mimeType={data.mimeType}
+                  recipientName={data.recipientName}
+                  verificationId={data.verificationId}
+                  isProtected={isViewOnly}
+                  className="max-h-[380px] w-auto max-w-full flex items-center justify-center"
+                />
               </div>
-            </ScreenshotShield>
+            )}
           </div>
         )}
 
@@ -376,31 +362,31 @@ export default function VerificationPage() {
 
           {/* Viewer Body with Active Screenshot Shield */}
           <div className="flex-1 w-full min-h-0 overflow-auto flex items-center justify-center p-4 bg-black/60 relative">
-            <ScreenshotShield
-              isProtected={isViewOnly}
-              recipientName={data.recipientName}
-              verificationId={data.verificationId}
-              className="max-w-full max-h-full flex items-center justify-center"
-            >
-              {data.mimeType === "application/pdf" ? (
+            {data.mimeType === "application/pdf" ? (
+              <ScreenshotShield
+                isProtected={isViewOnly}
+                recipientName={data.recipientName}
+                verificationId={data.verificationId}
+                className="max-w-full max-h-full flex items-center justify-center"
+              >
                 <iframe
                   src={`${data.filePreviewUrl}#toolbar=0&navpanes=0`}
                   title={data.originalName || "Document"}
                   className="w-[92vw] max-w-4xl h-[80vh] rounded-xl border border-slate-800 bg-white shadow-2xl"
                 />
-              ) : (
-                <img
-                  src={data.filePreviewUrl}
-                  alt={data.originalName || "Document"}
-                  style={{
-                    transform: `scale(${modalScale})`,
-                    transition: "transform 0.2s ease-out",
-                  }}
-                  className="max-h-[82vh] max-w-[90vw] object-contain select-none rounded-lg shadow-2xl"
-                  draggable={false}
-                />
-              )}
-            </ScreenshotShield>
+              </ScreenshotShield>
+            ) : (
+              <SecureDocumentViewer
+                src={data.filePreviewUrl}
+                alt={data.originalName || data.recipientName || "Verified Document"}
+                mimeType={data.mimeType}
+                recipientName={data.recipientName}
+                verificationId={data.verificationId}
+                isProtected={isViewOnly}
+                scale={modalScale}
+                className="max-h-[82vh] max-w-[90vw] flex items-center justify-center"
+              />
+            )}
           </div>
         </div>
       )}

@@ -184,16 +184,16 @@ export function ScreenshotShield({
         {children}
       </div>
 
-      {/* Forensic Anti-Capture Watermark Grid (Subtle repeating diagonal stamp) */}
+      {/* Forensic Anti-Capture Watermark Grid */}
       {isProtected && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-30 overflow-hidden select-none flex flex-wrap items-center justify-around opacity-[0.14] mix-blend-overlay rotate-[-25deg] scale-125"
+          className="pointer-events-none absolute inset-0 z-30 overflow-hidden select-none flex flex-wrap items-center justify-around opacity-[0.38] rotate-[-25deg] scale-125"
         >
-          {Array.from({ length: 16 }).map((_, i) => (
+          {Array.from({ length: 20 }).map((_, i) => (
             <div
               key={i}
-              className="text-[11px] sm:text-xs font-mono font-black tracking-widest text-slate-100 whitespace-nowrap p-4"
+              className="text-[12px] sm:text-xs font-mono font-black tracking-widest text-slate-900 drop-shadow-[0_1px_1px_rgba(255,255,255,0.85)] whitespace-nowrap p-4"
             >
               {defaultWatermark}
             </div>
