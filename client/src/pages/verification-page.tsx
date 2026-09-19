@@ -37,17 +37,33 @@ export default function VerificationPage() {
   const [showProtectedModal, setShowProtectedModal] = useState(false);
   const [modalScale, setModalScale] = useState(1);
 
+  // Email authorization states
+  const [emailInput, setEmailInput] = useState("");
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadVerification() {
       if (!shareId) return;
       try {
         setLoading(true);
-        const res = await fetch(`/api/verify/${shareId}`);
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({ message: "Verification link not found" }));
-          throw new Error(errData.message || "Invalid verification record");
+        const searchParams = new URLSearchParams(window.location.search);
+        const initialEmail = searchParams.get("email");
+        if (initialEmail) {
+          setEmailInput(initialEmail);
         }
+
+        const queryParam = initialEmail ? `?email=${encodeURIComponent(initialEmail)}` : "";
+        const res = await fetch(`/api/verify/${shareId}${queryParam}`);
         const result: PublicVerificationResponse = await res.json();
+        if (!res.ok) {
+          if (res.status === 403 && result.requiresEmail) {
+            setData(result);
+            setEmailError(result.message || "Access denied: This email is not authorized to view this document.");
+            return;
+          }
+          throw new Error(result.message || "Invalid verification record");
+        }
         setData(result);
       } catch (err: any) {
         setError(err.message || "Unable to verify credential");
@@ -58,11 +74,140 @@ export default function VerificationPage() {
     loadVerification();
   }, [shareId]);
 
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = emailInput.trim().toLowerCase();
+    if (!cleanEmail) return;
+
+    try {
+      setVerifyingEmail(true);
+      setEmailError(null);
+      const res = await fetch(`/api/verify/${shareId}?email=${encodeURIComponent(cleanEmail)}`);
+      const result: PublicVerificationResponse = await res.json();
+      if (!res.ok) {
+        setEmailError(result.message || "Access denied: This email is not authorized to view this document.");
+        return;
+      }
+      if (result.requiresEmail) {
+        setEmailError(result.message || "Please enter an authorized email address.");
+        return;
+      }
+
+      setData(result);
+      // Persist in URL query param for smooth refresh
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set("email", cleanEmail);
+      window.history.replaceState({}, "", newUrl.toString());
+    } catch (err: any) {
+      setEmailError(err.message || "Verification request failed");
+    } finally {
+      setVerifyingEmail(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
         <Loader2 className="h-10 w-10 animate-spin text-[#c9a84c] mb-4" />
         <p className="text-slate-300 font-medium tracking-wide">Querying tamper-evident provenance record...</p>
+      </div>
+    );
+  }
+
+  // Authorized Recipient Email Entry Gate
+  if (data?.requiresEmail) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-3 sm:p-8">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#c9a84c]/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-900/10 rounded-full blur-3xl" />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 sm:p-8 relative z-10 space-y-6"
+        >
+          {/* Header */}
+          <div className="flex items-center space-x-3 pb-5 border-b border-slate-800">
+            <div className="h-10 w-10 rounded-xl bg-[#c9a84c]/20 flex items-center justify-center border border-[#c9a84c]/40 shrink-0">
+              <Lock className="h-5 w-5 text-[#c9a84c]" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-white font-display font-bold text-base sm:text-lg tracking-tight truncate">
+                Restricted Document
+              </h2>
+              <p className="text-[11px] sm:text-xs text-slate-400 truncate">
+                Authorized Recipient Verification
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              This document was shared exclusively with authorized email recipients. Please enter your email address to access and verify this credential.
+            </p>
+            {data.originalName && (
+              <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-800 text-xs text-slate-200 font-mono flex items-center gap-2">
+                <FileText className="h-4 w-4 text-[#c9a84c] shrink-0" />
+                <span className="truncate">{data.originalName}</span>
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 block">
+                Your Email Address
+              </label>
+              <input
+                type="email"
+                placeholder="recipient@example.com"
+                value={emailInput}
+                onChange={(e) => {
+                  setEmailInput(e.target.value);
+                  if (emailError) setEmailError(null);
+                }}
+                className="w-full h-11 px-3.5 bg-slate-800/80 border border-slate-700 focus:border-[#c9a84c] focus:outline-none rounded-xl text-xs sm:text-sm text-white placeholder:text-slate-500 font-mono transition-colors"
+                autoFocus
+              />
+            </div>
+
+            {emailError && (
+              <div className="p-3 bg-red-950/40 border border-red-900/60 rounded-xl flex items-center space-x-2 text-xs text-red-200 animate-in fade-in duration-200">
+                <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+                <span>{emailError}</span>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={verifyingEmail || !emailInput.trim()}
+              className="w-full h-11 text-slate-950 font-bold text-xs sm:text-sm rounded-xl shadow-lg flex items-center justify-center gap-2 hover:opacity-95 transition-all cursor-pointer"
+              style={{ backgroundColor: "#c9a84c" }}
+            >
+              {verifyingEmail ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
+                  <span>Verifying Email...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="h-4 w-4 text-slate-950" />
+                  <span>Verify & Access Document</span>
+                </>
+              )}
+            </Button>
+          </form>
+
+          <div className="pt-4 border-t border-slate-800/80 text-center">
+            <p className="text-[11px] text-slate-500 flex items-center justify-center">
+              <Lock className="h-3 w-3 mr-1 text-[#c9a84c]" />
+              Secured by FileVault Cryptographic Mesh
+            </p>
+          </div>
+        </motion.div>
       </div>
     );
   }
@@ -75,7 +220,7 @@ export default function VerificationPage() {
         </div>
         <h1 className="text-2xl font-display font-bold text-white mb-2">Credential Verification Inactive</h1>
         <p className="text-slate-400 max-w-md mb-8 text-sm leading-relaxed">
-          {error || "This document share link does not exist, has been revoked by the holder, or has reached its access limit."}
+          {error || "This document share link does not exist, has been revoked by the holder, or is inaccessible."}
         </p>
         <Link href="/">
           <Button variant="outline" className="text-slate-300 border-slate-700 hover:bg-slate-800 rounded-xl">

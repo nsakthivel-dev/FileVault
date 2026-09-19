@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DocumentRecord, ShareRecord } from "@shared/schema";
-import { useSharesForDocument, useCreateShare, useRevokeShare } from "@/hooks/use-documents";
-import { Share2, Copy, Check, Clock, Eye, Trash2, ShieldCheck, AlertTriangle, ExternalLink } from "lucide-react";
-import { format } from "date-fns";
+import { useCreateShare } from "@/hooks/use-documents";
+import { Share2, Copy, Check, Plus, Trash2, Mail, CheckCircle2, Loader2 } from "lucide-react";
 import { copyToClipboard as robustCopy } from "@/lib/utils";
 
 interface ShareModalProps {
@@ -16,273 +15,268 @@ interface ShareModalProps {
 }
 
 export function ShareModal({ document, isOpen, onClose }: ShareModalProps) {
-  const [expiresInHours, setExpiresInHours] = useState<string>("24");
-  const [accessLimit, setAccessLimit] = useState<string>("5");
-  const [copiedLink, setCopiedLink] = useState<string | null>(null);
-  const [justGeneratedId, setJustGeneratedId] = useState<string | null>(null);
+  const [emails, setEmails] = useState<string[]>([""]);
+  const [generatedShare, setGeneratedShare] = useState<ShareRecord | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const [permission, setPermission] = useState<"view" | "download" | "both">("both");
-
-  const sharesQuery = useSharesForDocument(document?.id || "");
   const createShareMutation = useCreateShare();
-  const revokeShareMutation = useRevokeShare();
 
   if (!document) return null;
+
+  const handleClose = () => {
+    setEmails([""]);
+    setGeneratedShare(null);
+    setIsCopied(false);
+    setValidationError(null);
+    onClose();
+  };
+
+  const handleAddEmail = () => {
+    setEmails((prev) => [...prev, ""]);
+  };
+
+  const handleEmailChange = (index: number, value: string) => {
+    setEmails((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+    if (validationError) setValidationError(null);
+  };
+
+  const handleRemoveEmail = (index: number) => {
+    setEmails((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [""];
+    });
+  };
 
   const getVerificationUrl = (shareId: string) => {
     return `${window.location.origin}/verify/${shareId}`;
   };
 
-  const copyShareLink = async (text: string, id: string) => {
-    await robustCopy(text);
-    setCopiedLink(id);
-    setTimeout(() => setCopiedLink(null), 2500);
+  const handleCopyLink = async () => {
+    if (!generatedShare) return;
+    const url = getVerificationUrl(generatedShare.id);
+    await robustCopy(url);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2500);
   };
 
-  const handleCreateShare = () => {
+  const handleGenerateShareLink = () => {
+    // Validate email inputs
+    const trimmedEmails = emails.map((e) => e.trim()).filter(Boolean);
+    if (trimmedEmails.length === 0) {
+      setValidationError("Please enter at least one recipient email address.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalid = trimmedEmails.filter((e) => !emailRegex.test(e));
+    if (invalid.length > 0) {
+      setValidationError(`Invalid email format: ${invalid[0]}`);
+      return;
+    }
+
+    setValidationError(null);
+
     createShareMutation.mutate(
       {
         documentId: document.id,
-        expiresInHours: expiresInHours === "never" ? null : Number(expiresInHours),
-        accessLimit: accessLimit === "unlimited" ? null : Number(accessLimit),
-        permission,
+        emails: trimmedEmails,
       },
       {
-        onSuccess: async (newShare: ShareRecord) => {
-          const url = getVerificationUrl(newShare.id);
-          await robustCopy(url);
-          setCopiedLink(newShare.id);
-          setJustGeneratedId(newShare.id);
-          setTimeout(() => setCopiedLink(null), 3000);
+        onSuccess: (newShare: ShareRecord) => {
+          setGeneratedShare(newShare);
         },
       }
     );
   };
 
-  const shares = sharesQuery.data || [];
-
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[94vw] sm:max-w-xl p-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col z-50">
-        <div className="p-4 sm:p-6 bg-white overflow-y-auto flex-1">
-          <DialogHeader className="mb-4 sm:mb-5">
-            <div className="flex items-center space-x-2 text-[#c9a84c] mb-1">
-              <Share2 className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="text-[10px] sm:text-xs uppercase font-bold tracking-widest">Controlled Credential Sharing</span>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="w-[94vw] sm:max-w-md p-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 shadow-2xl z-50">
+        <div className="p-5 sm:p-6 bg-white flex flex-col space-y-5">
+          {/* Modal Header */}
+          <DialogHeader className="text-left space-y-1.5">
+            <div className="flex items-center space-x-2 text-[#c9a84c]">
+              <div className="h-7 w-7 rounded-lg bg-[#c9a84c]/15 flex items-center justify-center">
+                <Share2 className="h-4 w-4 text-[#c9a84c]" />
+              </div>
+              <span className="text-[11px] uppercase font-bold tracking-widest text-[#c9a84c]">
+                Document Access
+              </span>
             </div>
             <DialogTitle className="text-xl sm:text-2xl font-display font-bold text-slate-900">
               Share Document
             </DialogTitle>
             <DialogDescription className="text-slate-500 text-xs sm:text-sm">
-              Generate a secure, time-limited verification link for <span className="font-semibold text-slate-800">"{document.originalName}"</span>. Recipients only see authorized fields.
+              Share <span className="font-semibold text-slate-800">"{document.originalName}"</span> with a recipient.
             </DialogDescription>
           </DialogHeader>
 
-          {/* New Share Link Generation */}
-          <div className="bg-slate-50 rounded-2xl p-3.5 sm:p-4 border border-slate-200 mb-5 sm:mb-6 space-y-3.5 sm:space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Configure Access Policy</h4>
+          {/* Form State: Enter Recipient Emails */}
+          {!generatedShare ? (
+            <div className="space-y-4">
+              <div className="space-y-2.5">
+                <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-slate-400" />
+                  Email Address
+                </Label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <Label className="text-xs text-slate-600 font-medium mb-1 block">Expiration Window</Label>
-                <Select value={expiresInHours} onValueChange={setExpiresInHours}>
-                  <SelectTrigger className="bg-white border-slate-200 h-9 text-xs">
-                    <SelectValue placeholder="Select Expiry" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="1">1 Hour</SelectItem>
-                    <SelectItem value="24">24 Hours (1 Day)</SelectItem>
-                    <SelectItem value="168">7 Days</SelectItem>
-                    <SelectItem value="720">30 Days</SelectItem>
-                    <SelectItem value="never">No Expiration</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-xs text-slate-600 font-medium mb-1 block">Maximum Access Limit</Label>
-                <Select value={accessLimit} onValueChange={setAccessLimit}>
-                  <SelectTrigger className="bg-white border-slate-200 h-9 text-xs">
-                    <SelectValue placeholder="Select Limit" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="1">1 View (Single-use)</SelectItem>
-                    <SelectItem value="5">5 Views</SelectItem>
-                    <SelectItem value="10">10 Views</SelectItem>
-                    <SelectItem value="25">25 Views</SelectItem>
-                    <SelectItem value="unlimited">Unlimited Views</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-xs text-slate-600 font-medium mb-1 block">Permission Mode</Label>
-                <Select value={permission} onValueChange={(val: any) => setPermission(val)}>
-                  <SelectTrigger className="bg-white border-slate-200 h-9 text-xs">
-                    <SelectValue placeholder="Permission" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="both">👁️ View & Download</SelectItem>
-                    <SelectItem value="view">👁️ View Only</SelectItem>
-                    <SelectItem value="download">⬇️ Download Only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleCreateShare}
-              disabled={createShareMutation.isPending}
-              className="w-full font-semibold rounded-lg h-10 text-sm bg-slate-900 text-white hover:bg-slate-800"
-            >
-              {createShareMutation.isPending ? "Generating Share Link..." : "Generate Secure Verification Link"}
-            </Button>
-
-            {justGeneratedId && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center text-xs font-semibold text-emerald-800 mb-0.5">
-                    <Check className="h-3.5 w-3.5 mr-1 text-emerald-600 shrink-0" />
-                    Auto-Copied Link to Clipboard!
-                  </div>
-                  <div className="font-mono text-[11px] text-emerald-700 truncate select-all">
-                    {getVerificationUrl(justGeneratedId)}
-                  </div>
+                <div className="space-y-2">
+                  {emails.map((email, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        type="email"
+                        placeholder="Enter recipient email"
+                        value={email}
+                        onChange={(e) => handleEmailChange(index, e.target.value)}
+                        className="h-10 text-xs sm:text-sm rounded-xl border-slate-200 focus-visible:ring-[#c9a84c] focus-visible:border-[#c9a84c]"
+                        disabled={createShareMutation.isPending}
+                        autoFocus={index === 0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleGenerateShareLink();
+                          }
+                        }}
+                      />
+                      {emails.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveEmail(index)}
+                          className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl shrink-0"
+                          title="Remove email"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => copyShareLink(getVerificationUrl(justGeneratedId), justGeneratedId)}
-                  className="bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs h-8 shrink-0 font-medium"
+
+                <button
+                  type="button"
+                  onClick={handleAddEmail}
+                  disabled={createShareMutation.isPending}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors pt-1 cursor-pointer"
                 >
-                  {copiedLink === justGeneratedId ? (
+                  <Plus className="h-3.5 w-3.5" />
+                  Add another email
+                </button>
+              </div>
+
+              {/* Validation or API error */}
+              {(validationError || createShareMutation.error) && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+                  {validationError || createShareMutation.error?.message}
+                </div>
+              )}
+
+              {/* Action Button */}
+              <div className="pt-2">
+                <Button
+                  onClick={handleGenerateShareLink}
+                  disabled={createShareMutation.isPending}
+                  className="w-full h-11 rounded-xl font-semibold text-xs sm:text-sm bg-slate-900 text-white hover:bg-slate-800 shadow-md transition-all flex items-center justify-center gap-2"
+                >
+                  {createShareMutation.isPending ? (
                     <>
-                      <Check className="h-3 w-3 mr-1 text-emerald-600" />
-                      Copied!
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Generating Share Link...</span>
                     </>
                   ) : (
-                    <>
-                      <Copy className="h-3 w-3 mr-1" />
-                      Copy Again
-                    </>
+                    <span>Generate Share Link</span>
                   )}
                 </Button>
               </div>
-            )}
-          </div>
-
-          {/* Existing Shares List */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
-              Active & Past Shares ({shares.length})
-            </h4>
-
-            {shares.length === 0 ? (
-              <p className="text-xs text-slate-400 italic py-4 text-center">
-                No share links generated yet for this document.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {shares.map((share) => {
-                  const isExpired = share.expiresAt ? new Date() > new Date(share.expiresAt) : false;
-                  const isLimitReached = share.accessLimit !== null && share.accessCount >= share.accessLimit;
-                  const isRevoked = share.status === "REVOKED";
-                  const isActive = !isExpired && !isLimitReached && !isRevoked;
-                  const verificationUrl = getVerificationUrl(share.id);
-
-                  return (
-                    <div
-                      key={share.id}
-                      className="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-all flex flex-col space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              isActive ? "bg-emerald-500" : isRevoked ? "bg-slate-400" : "bg-amber-500"
-                            }`}
-                          />
-                          <span className="font-mono text-xs font-semibold text-slate-800">
-                            FV-{share.id.replace(/^fv_/, "").toUpperCase().slice(0, 8)}
-                          </span>
-                          <span
-                            className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                              isActive
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : isRevoked
-                                ? "bg-slate-100 text-slate-600 border border-slate-200"
-                                : "bg-amber-50 text-amber-700 border border-amber-200"
-                            }`}
-                          >
-                            {isRevoked ? "Revoked" : isExpired ? "Expired" : isLimitReached ? "Limit Reached" : "Active"}
-                          </span>
-                        </div>
-
-                        {isActive && (
-                          <button
-                            onClick={() => revokeShareMutation.mutate({ id: share.id, documentId: document.id })}
-                            disabled={revokeShareMutation.isPending}
-                            className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors font-medium"
-                          >
-                            Revoke Link
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Details row */}
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                        <span className="flex items-center">
-                          <Eye className="h-3 w-3 mr-1 text-slate-400" />
-                          {share.accessCount} / {share.accessLimit === null ? "∞" : share.accessLimit} views
-                        </span>
-                        <span className="flex items-center">
-                          <Clock className="h-3 w-3 mr-1 text-slate-400" />
-                          {share.expiresAt
-                            ? `Expires ${format(new Date(share.expiresAt), "MMM d, h:mm a")}`
-                            : "No expiry"}
-                        </span>
-                      </div>
-
-                      {/* Action buttons */}
-                      {isActive && (
-                        <div className="flex items-center space-x-2 pt-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => copyShareLink(verificationUrl, share.id)}
-                            className="h-8 text-xs font-medium rounded-lg flex-1 border-slate-200"
-                          >
-                            {copiedLink === share.id ? (
-                              <>
-                                <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" />
-                                Copied Link
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-3.5 w-3.5 mr-1 text-slate-500" />
-                                Copy Verification Link
-                              </>
-                            )}
-                          </Button>
-                          <a href={verificationUrl} target="_blank" rel="noopener noreferrer">
-                            <Button size="sm" variant="ghost" className="h-8 px-2 text-slate-500 hover:text-slate-800">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            </div>
+          ) : (
+            /* Generated State: Copy Share Link */
+            <div className="space-y-4 pt-1 animate-in fade-in zoom-in-95 duration-200">
+              <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-1.5">
+                <div className="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  Share link created successfully
+                </div>
+                <p className="text-xs text-emerald-700 leading-relaxed">
+                  Only authorized email recipients can view and verify this credential.
+                </p>
+                {generatedShare.recipientEmails && generatedShare.recipientEmails.length > 0 && (
+                  <div className="pt-1.5 flex flex-wrap gap-1.5">
+                    {generatedShare.recipientEmails.map((email, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100/90 text-emerald-800 border border-emerald-200"
+                      >
+                        {email}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
-            <Button variant="outline" onClick={onClose} className="rounded-lg text-xs">
-              Close
-            </Button>
-          </div>
+              {/* Generated link + Copy Link button */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-slate-700 block">
+                  Share Link
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={getVerificationUrl(generatedShare.id)}
+                    className="h-10 text-xs font-mono text-slate-700 bg-slate-50 border-slate-200 rounded-xl select-all"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className={`h-10 px-4 rounded-xl text-xs font-semibold shrink-0 transition-all ${
+                      isCopied
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        : "bg-slate-900 hover:bg-slate-800 text-white"
+                    }`}
+                  >
+                    {isCopied ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 mr-1" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5 mr-1" />
+                        Copy Link
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Bottom Done Action */}
+              <div className="pt-2 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGeneratedShare(null);
+                    setEmails([""]);
+                  }}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                >
+                  Share with more recipients
+                </button>
+                <Button
+                  onClick={handleClose}
+                  variant="outline"
+                  className="h-9 px-5 rounded-xl text-xs font-semibold border-slate-300 hover:bg-slate-100"
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

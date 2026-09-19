@@ -32,11 +32,7 @@ export default function SharedLinksPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const activeShares = shares.filter((s) => {
-    const isExpired = s.expiresAt ? new Date() > new Date(s.expiresAt) : false;
-    const isLimitReached = s.accessLimit !== null && s.accessCount >= s.accessLimit;
-    return s.status === "ACTIVE" && !isExpired && !isLimitReached;
-  });
+  const activeShares = shares.filter((s) => s.status === "ACTIVE");
 
   const totalAccesses = shares.reduce((acc, s) => acc + (s.accessCount || 0), 0);
 
@@ -134,12 +130,10 @@ export default function SharedLinksPage() {
               {/* MOBILE SHARED LINK CARDS (< sm breakpoint) */}
               <div className="sm:hidden divide-y divide-slate-100">
                 {shares.map((share) => {
-                  const isExpired = share.expiresAt ? new Date() > new Date(share.expiresAt) : false;
-                  const isLimitReached = share.accessLimit !== null && share.accessCount >= share.accessLimit;
                   const isRevoked = share.status === "REVOKED";
-                  const isActive = !isExpired && !isLimitReached && !isRevoked;
-                  const perm = share.permission || "both";
+                  const isActive = !isRevoked;
                   const tokenShort = `FV-${share.id.replace(/^fv_/, "").toUpperCase().slice(0, 8)}`;
+                  const recipients = share.recipientEmails || [];
 
                   return (
                     <div key={share.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
@@ -167,22 +161,26 @@ export default function SharedLinksPage() {
                           </span>
                         ) : (
                           <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 shrink-0">
-                            {isRevoked ? "Revoked" : isExpired ? "Expired" : "Limit Met"}
+                            Revoked
                           </span>
                         )}
                       </div>
 
-                      {/* Middle: Permission + Access Count */}
-                      <div className="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        <div className="flex items-center space-x-1.5">
-                          <span className="text-[11px] text-slate-500 font-medium">Perms:</span>
-                          <span className="text-[11px] font-semibold text-slate-800">
-                            {perm === "view" ? "View Only" : perm === "download" ? "Download Only" : "View & Download"}
-                          </span>
-                        </div>
-
-                        <div className="text-[11px] font-mono text-slate-600">
-                          {share.accessCount} / {share.accessLimit === null ? "∞" : share.accessLimit} used
+                      {/* Middle: Authorized Recipients */}
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">
+                          Authorized Recipients ({recipients.length})
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {recipients.length > 0 ? (
+                            recipients.map((email, idx) => (
+                              <span key={idx} className="text-[11px] font-mono bg-white px-2 py-0.5 rounded-md border border-slate-200 text-slate-700">
+                                {email}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic">Direct Link</span>
+                          )}
                         </div>
                       </div>
 
@@ -237,20 +235,18 @@ export default function SharedLinksPage() {
                   <thead>
                     <tr className="bg-slate-50/75 border-b border-slate-100 text-slate-400 font-mono text-[10px] uppercase tracking-wider">
                       <th className="py-3 px-4">Shared Document</th>
-                      <th className="py-3 px-4">Permission Mode</th>
+                      <th className="py-3 px-4">Authorized Recipients</th>
                       <th className="py-3 px-4">Verification URL / Token</th>
-                      <th className="py-3 px-4">Access Count</th>
-                      <th className="py-3 px-4">Status & Expiration</th>
+                      <th className="py-3 px-4">Views</th>
+                      <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {shares.map((share) => {
-                      const isExpired = share.expiresAt ? new Date() > new Date(share.expiresAt) : false;
-                      const isLimitReached = share.accessLimit !== null && share.accessCount >= share.accessLimit;
                       const isRevoked = share.status === "REVOKED";
-                      const isActive = !isExpired && !isLimitReached && !isRevoked;
-                      const perm = share.permission || "both";
+                      const isActive = !isRevoked;
+                      const recipients = share.recipientEmails || [];
 
                       return (
                         <motion.tr 
@@ -276,26 +272,22 @@ export default function SharedLinksPage() {
                             </div>
                           </td>
 
-                          {/* Permission */}
+                          {/* Authorized Recipients */}
                           <td className="py-3.5 px-4">
-                            {perm === "view" && (
-                              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                                <Eye className="h-3 w-3" />
-                                <span>View Only</span>
-                              </span>
-                            )}
-                            {perm === "download" && (
-                              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                <Download className="h-3 w-3" />
-                                <span>Download Only</span>
-                              </span>
-                            )}
-                            {perm === "both" && (
-                              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <ShieldCheck className="h-3 w-3" />
-                                <span>View & Download</span>
-                              </span>
-                            )}
+                            <div className="flex flex-wrap gap-1 max-w-xs">
+                              {recipients.length > 0 ? (
+                                recipients.map((email, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono bg-slate-100 text-slate-700 border border-slate-200/80"
+                                  >
+                                    {email}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[11px] text-slate-400 italic">Direct Link</span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Verification Token / Copy */}
@@ -316,26 +308,19 @@ export default function SharedLinksPage() {
 
                           {/* Access Count */}
                           <td className="py-3.5 px-4 font-mono text-slate-600">
-                            {share.accessCount} / {share.accessLimit === null ? "∞" : share.accessLimit}
-                            <span className="text-[10px] text-slate-400 block">
-                              {share.accessLimit ? "views allowed" : "unlimited"}
-                            </span>
+                            {share.accessCount || 0}
                           </td>
 
-                          {/* Status & Expiry */}
+                          {/* Status */}
                           <td className="py-3.5 px-4">
                             {isActive ? (
-                              <div>
-                                <span className="inline-flex items-center text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                                  Active Grant
-                                </span>
-                                <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
-                                  {share.expiresAt ? format(new Date(share.expiresAt), "MMM d, h:mm a") : "Never expires"}
-                                </span>
-                              </div>
+                              <span className="inline-flex items-center text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse" />
+                                Active
+                              </span>
                             ) : (
                               <span className="inline-flex items-center text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
-                                {isRevoked ? "Revoked" : isExpired ? "Expired" : "Limit Reached"}
+                                Revoked
                               </span>
                             )}
                           </td>

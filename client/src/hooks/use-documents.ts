@@ -415,6 +415,7 @@ export function useCreateShare() {
   return useMutation({
     mutationFn: async (data: { 
       documentId: string; 
+      emails?: string[];
       expiresInHours?: number | null; 
       accessLimit?: number | null; 
       permission?: "view" | "download" | "both";

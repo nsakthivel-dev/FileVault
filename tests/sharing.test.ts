@@ -35,66 +35,75 @@ beforeAll(async () => {
   testDocId = uploadRes.body.id;
 });
 
-describe("Secure Credential Sharing & Public Verification", () => {
+describe("Secure Email-Based Credential Sharing & Public Verification", () => {
   let activeShareId: string;
+  const authorizedEmail = "recipient@example.com";
+  const secondAuthorizedEmail = "partner@university.edu";
+  const unauthorizedEmail = "intruder@malicious.org";
 
-  it("creates a controlled share link with 24h expiration and 2-view limit", async () => {
+  it("creates a secure email-associated share link", async () => {
     const res = await ownerAgent
       .post("/api/shares")
       .send({
         documentId: testDocId,
-        expiresInHours: 24,
-        accessLimit: 2,
+        emails: [authorizedEmail, secondAuthorizedEmail],
       });
 
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty("id");
     expect(res.body.documentId).toBe(testDocId);
     expect(res.body.status).toBe("ACTIVE");
-    expect(res.body.accessLimit).toBe(2);
-    expect(res.body.accessCount).toBe(0);
+    expect(res.body.recipientEmails).toContain(authorizedEmail);
+    expect(res.body.recipientEmails).toContain(secondAuthorizedEmail);
 
     activeShareId = res.body.id;
   });
 
-  it("serves public verification without exposing private user account or raw storage paths", async () => {
-    // Unauthenticated public request
+  it("prompts for authorized email when accessed without providing an email", async () => {
     const res = await request(app).get(`/api/verify/${activeShareId}`);
 
     expect(res.status).toBe(200);
+    expect(res.body.requiresEmail).toBe(true);
     expect(res.body).toHaveProperty("verificationId");
     expect(res.body.verificationId).toMatch(/^FV-/);
-    expect(res.body.recipientName).toBe("Alice Walker");
-    expect(res.body.institution).toBe("Cambridge University");
     expect(res.body.documentType).toBe("certificates");
-    expect(res.body.canViewFile).toBe(true);
     expect(res.body).not.toHaveProperty("storagePath");
-    expect(res.body).not.toHaveProperty("ownerId");
+    expect(res.body).not.toHaveProperty("filePreviewUrl");
   });
 
-  it("allows recipient to preview the shared file and increments access count", async () => {
-    const previewRes = await request(app).get(`/api/shares/${activeShareId}/preview`);
+  it("blocks preview and download when unauthorized email is provided", async () => {
+    // Verification check with unauthorized email
+    const verifyRes = await request(app).get(`/api/verify/${activeShareId}?email=${unauthorizedEmail}`);
+    expect(verifyRes.status).toBe(403);
+    expect(verifyRes.body.emailUnauthorized).toBe(true);
+
+    // Direct preview attempt with unauthorized email
+    const previewRes = await request(app).get(`/api/shares/${activeShareId}/preview?email=${unauthorizedEmail}`);
+    expect(previewRes.status).toBe(403);
+    expect(previewRes.body.message).toMatch(/denied|unauthorized|not authorized/i);
+  });
+
+  it("allows authorized recipient email to verify and preview the document", async () => {
+    const verifyRes = await request(app).get(`/api/verify/${activeShareId}?email=${authorizedEmail}`);
+    expect(verifyRes.status).toBe(200);
+    expect(verifyRes.body.requiresEmail).toBe(false);
+    expect(verifyRes.body.recipientName).toBe("Alice Walker");
+    expect(verifyRes.body.institution).toBe("Cambridge University");
+    expect(verifyRes.body.canViewFile).toBe(true);
+    expect(verifyRes.body.filePreviewUrl).toContain(encodeURIComponent(authorizedEmail));
+
+    // Preview with authorized email
+    const previewRes = await request(app).get(`/api/shares/${activeShareId}/preview?email=${authorizedEmail}`);
     expect(previewRes.status).toBe(200);
     expect(previewRes.headers["content-type"]).toContain("application/pdf");
-
-    // Second view
-    const secondRes = await request(app).get(`/api/shares/${activeShareId}/preview`);
-    expect(secondRes.status).toBe(200);
-
-    // Third view should exceed the 2-view limit
-    const thirdRes = await request(app).get(`/api/shares/${activeShareId}/preview`);
-    expect(thirdRes.status).toBe(403);
-    expect(thirdRes.body.message).toMatch(/limit/i);
   });
 
-  it("allows owner to revoke a share link", async () => {
-    // Create new share for revocation test
+  it("allows owner to revoke an email-based share link", async () => {
     const newShare = await ownerAgent
       .post("/api/shares")
       .send({
         documentId: testDocId,
-        expiresInHours: 48,
-        accessLimit: 10,
+        emails: ["temp_guest@domain.com"],
       });
 
     const shareId = newShare.body.id;
@@ -103,8 +112,8 @@ describe("Secure Credential Sharing & Public Verification", () => {
     const revokeRes = await ownerAgent.delete(`/api/shares/${shareId}`);
     expect(revokeRes.status).toBe(204);
 
-    // Attempting to access revoked share
-    const accessRes = await request(app).get(`/api/shares/${shareId}/preview`);
+    // Attempting to access revoked share even with authorized email
+    const accessRes = await request(app).get(`/api/shares/${shareId}/preview?email=temp_guest@domain.com`);
     expect(accessRes.status).toBe(403);
     expect(accessRes.body.message).toMatch(/revoked/i);
   });

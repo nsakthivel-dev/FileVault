@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS public.shares (
   owner_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   document_name TEXT NOT NULL,
   document_type TEXT NOT NULL,
+  recipient_emails JSONB DEFAULT '[]'::jsonb,
   expires_at TIMESTAMPTZ,
   access_limit INTEGER,
   access_count INTEGER DEFAULT 0,

@@ -816,7 +816,32 @@ export async function registerRoutes(
     }
   });
 
-  // 2. Create a secure share
+  // Helper to verify recipient email for a share
+  function verifyShareEmailAccess(share: ShareRecord, req: Request): { authorized: boolean; error?: string; requiresEmail?: boolean } {
+    if (share.status === "REVOKED") {
+      return { authorized: false, error: "This share link has been revoked by the owner." };
+    }
+    const recipients = (share.recipientEmails || []).map((e: string) => e.trim().toLowerCase()).filter(Boolean);
+    if (recipients.length === 0) {
+      return { authorized: true };
+    }
+    const providedEmail = (
+      (req.query.email as string) ||
+      (req.headers["x-recipient-email"] as string) ||
+      (req.user as any)?.email ||
+      ""
+    ).trim().toLowerCase();
+
+    if (!providedEmail) {
+      return { authorized: false, requiresEmail: true, error: "Authorized recipient email is required to access this document." };
+    }
+    if (!recipients.includes(providedEmail)) {
+      return { authorized: false, requiresEmail: true, error: "Access denied: This email is not authorized to view this document." };
+    }
+    return { authorized: true };
+  }
+
+  // 2. Create a secure share (Email-based)
   app.post("/api/shares", requireAuth, async (req, res) => {
     try {
       const parsed = createShareSchema.safeParse(req.body);
@@ -824,7 +849,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid input" });
       }
 
-      const { documentId, expiresInHours, accessLimit, allowedFields, permission } = parsed.data;
+      const { documentId, emails } = parsed.data;
       const doc = await storage.getDocument(documentId, req.user!.id);
       const isOwner = doc && (
         doc.ownerId === req.user!.id ||
@@ -836,11 +861,11 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Document not found" });
       }
 
-      let expiresAt: string | null = null;
-      if (expiresInHours && expiresInHours > 0) {
-        const expiry = new Date();
-        expiry.setHours(expiry.getHours() + expiresInHours);
-        expiresAt = expiry.toISOString();
+      const normalizedEmails = Array.from(
+        new Set((emails || []).map((e: string) => e.trim().toLowerCase()).filter(Boolean))
+      );
+      if (normalizedEmails.length === 0) {
+        return res.status(400).json({ message: "At least one recipient email address is required" });
       }
 
       // Generate secure unique share token
@@ -853,23 +878,36 @@ export async function registerRoutes(
         ownerId: req.user!.id,
         documentName: doc.originalName,
         documentType: doc.documentType,
-        expiresAt,
-        accessLimit: accessLimit || null,
-        accessCount: 0,
+        recipientEmails: normalizedEmails,
         status: "ACTIVE",
-        allowedFields: allowedFields || ["documentType", "institution", "recipientName", "issueDate", "expiryDate", "certificateNumber"],
-        permission: permission || "both",
         createdAt: now,
       };
 
       const created = await storage.createShare(shareRecord);
+
+      // In-app notifications for registered recipients
+      for (const email of normalizedEmails) {
+        try {
+          const recipientUser = await storage.getUserByEmail(email);
+          if (recipientUser && recipientUser.id !== req.user!.id) {
+            await storage.createNotification({
+              userId: recipientUser.id,
+              title: "Document Shared With You",
+              message: `${req.user!.name || req.user!.username} shared "${doc.originalName}" with you.`,
+              type: "share",
+              read: false,
+              createdAt: now,
+            });
+          }
+        } catch {}
+      }
 
       await storage.createAuditLog({
         userId: req.user!.id,
         action: "DOCUMENT_SHARED",
         documentId: doc.id,
         documentName: doc.originalName,
-        details: `Share created (ID: ${shareId}, Permission: ${permission || "both"}, Expires: ${expiresAt || "Never"}, Limit: ${accessLimit || "Unlimited"})`,
+        details: `Document "${doc.originalName}" shared with ${normalizedEmails.join(", ")} (Share ID: ${shareId})`,
         timestamp: now,
         status: "SUCCESS",
       });
@@ -926,7 +964,7 @@ export async function registerRoutes(
     }
   });
 
-  // 4. Shared Document Preview (Controlled Access)
+  // 4. Shared Document Preview (Controlled Access by Email)
   app.get("/api/shares/:id/preview", async (req, res) => {
     try {
       const share = await storage.getShare(req.params.id);
@@ -934,26 +972,9 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Share link not found" });
       }
 
-      // Check revocation
-      if (share.status === "REVOKED") {
-        return res.status(403).json({ message: "This share link has been revoked by the owner." });
-      }
-
-      // Check expiry
-      if (share.expiresAt && new Date() > new Date(share.expiresAt)) {
-        await storage.updateShare(share.id, { status: "EXPIRED" });
-        return res.status(403).json({ message: "This share link has expired." });
-      }
-
-      // Check access limit
-      if (share.accessLimit !== null && share.accessCount >= share.accessLimit) {
-        await storage.updateShare(share.id, { status: "LIMIT_REACHED" });
-        return res.status(403).json({ message: "The access limit for this share link has been reached." });
-      }
-
-      // Check permission
-      if (share.permission === "download") {
-        return res.status(403).json({ message: "This share link is configured for download only." });
+      const emailCheck = verifyShareEmailAccess(share, req);
+      if (!emailCheck.authorized) {
+        return res.status(403).json({ message: emailCheck.error });
       }
 
       const doc = await storage.getDocument(share.documentId);
@@ -962,14 +983,15 @@ export async function registerRoutes(
       }
 
       // Increment access counter
-      await storage.updateShare(share.id, { accessCount: share.accessCount + 1 });
+      await storage.updateShare(share.id, { accessCount: (share.accessCount || 0) + 1 });
 
+      const providedEmail = (req.query.email as string || req.headers["x-recipient-email"] as string || (req.user as any)?.email || "").trim();
       await storage.createAuditLog({
         userId: share.ownerId,
         action: "SHARE_ACCESSED",
         documentId: doc.id,
         documentName: doc.originalName,
-        details: `Recipient previewed shared document via token ${share.id}`,
+        details: `Recipient (${providedEmail || "Authorized"}) previewed shared document via token ${share.id}`,
         timestamp: new Date().toISOString(),
         status: "SUCCESS",
       });
@@ -991,7 +1013,7 @@ export async function registerRoutes(
     }
   });
 
-  // 5. Shared Document Download (Controlled Access)
+  // 5. Shared Document Download (Controlled Access by Email)
   app.get("/api/shares/:id/download", async (req, res) => {
     try {
       const share = await storage.getShare(req.params.id);
@@ -999,23 +1021,9 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Share link not found" });
       }
 
-      if (share.status === "REVOKED") {
-        return res.status(403).json({ message: "This share link has been revoked." });
-      }
-
-      if (share.expiresAt && new Date() > new Date(share.expiresAt)) {
-        await storage.updateShare(share.id, { status: "EXPIRED" });
-        return res.status(403).json({ message: "This share link has expired." });
-      }
-
-      if (share.accessLimit !== null && share.accessCount >= share.accessLimit) {
-        await storage.updateShare(share.id, { status: "LIMIT_REACHED" });
-        return res.status(403).json({ message: "The access limit for this share link has been reached." });
-      }
-
-      // Check permission
-      if (share.permission === "view") {
-        return res.status(403).json({ message: "This share link is view-only. Downloading is disabled." });
+      const emailCheck = verifyShareEmailAccess(share, req);
+      if (!emailCheck.authorized) {
+        return res.status(403).json({ message: emailCheck.error });
       }
 
       const doc = await storage.getDocument(share.documentId);
@@ -1023,14 +1031,15 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Document not found." });
       }
 
-      await storage.updateShare(share.id, { accessCount: share.accessCount + 1 });
+      await storage.updateShare(share.id, { accessCount: (share.accessCount || 0) + 1 });
 
+      const providedEmail = (req.query.email as string || req.headers["x-recipient-email"] as string || (req.user as any)?.email || "").trim();
       await storage.createAuditLog({
         userId: share.ownerId,
         action: "DOCUMENT_DOWNLOADED",
         documentId: doc.id,
         documentName: doc.originalName,
-        details: `Recipient downloaded document via share link ${share.id}`,
+        details: `Recipient (${providedEmail || "Authorized"}) downloaded document via share link ${share.id}`,
         timestamp: new Date().toISOString(),
         status: "SUCCESS",
       });
@@ -1052,7 +1061,7 @@ export async function registerRoutes(
   });
 
   // ----------------------------------------------------
-  // CONTROLLED PUBLIC VERIFICATION ENDPOINT
+  // CONTROLLED PUBLIC VERIFICATION ENDPOINT (Email-Based Access)
   // ----------------------------------------------------
   app.get("/api/verify/:shareId", async (req, res) => {
     try {
@@ -1061,21 +1070,51 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Verification record not found or invalid." });
       }
 
-      const isExpired = !!(share.expiresAt && new Date() > new Date(share.expiresAt));
-      if (isExpired && share.status === "ACTIVE") {
-        await storage.updateShare(share.id, { status: "EXPIRED" });
-        share.status = "EXPIRED";
-      }
-
-      const isLimitReached = !!(share.accessLimit !== null && share.accessCount >= share.accessLimit);
-      if (isLimitReached && share.status === "ACTIVE") {
-        await storage.updateShare(share.id, { status: "LIMIT_REACHED" });
-        share.status = "LIMIT_REACHED";
+      if (share.status === "REVOKED") {
+        return res.status(403).json({
+          message: "This document share link has been revoked by the document owner.",
+          shareStatus: "REVOKED",
+        });
       }
 
       const doc = await storage.getDocument(share.documentId);
       if (!doc) {
         return res.status(404).json({ message: "Associated document record no longer exists." });
+      }
+
+      const recipients = (share.recipientEmails || []).map((e: string) => e.trim().toLowerCase()).filter(Boolean);
+      const providedEmail = (
+        (req.query.email as string) ||
+        (req.headers["x-recipient-email"] as string) ||
+        (req.user as any)?.email ||
+        ""
+      ).trim().toLowerCase();
+
+      // If recipients are restricted and no email provided
+      if (recipients.length > 0 && !providedEmail) {
+        return res.json({
+          requiresEmail: true,
+          verificationId: `FV-${share.id.replace(/^fv_/, "").toUpperCase().slice(0, 8)}`,
+          originalName: doc.originalName,
+          documentType: doc.documentType,
+          recipientName: doc.recipientName || "Authorized Holder",
+          institution: doc.institution || "Registered Authority",
+          status: doc.verificationStatus,
+          shareStatus: share.status,
+          message: "Authorized recipient email required to view this document.",
+        });
+      }
+
+      // If recipients are restricted and provided email does NOT match
+      if (recipients.length > 0 && !recipients.includes(providedEmail)) {
+        return res.status(403).json({
+          requiresEmail: true,
+          emailUnauthorized: true,
+          verificationId: `FV-${share.id.replace(/^fv_/, "").toUpperCase().slice(0, 8)}`,
+          originalName: doc.originalName,
+          documentType: doc.documentType,
+          message: "Access denied: This email is not authorized to access this document.",
+        });
       }
 
       // Log verification attempt
@@ -1084,14 +1123,12 @@ export async function registerRoutes(
         action: "VERIFICATION_REQUESTED",
         documentId: doc.id,
         documentName: doc.originalName,
-        details: `Public credential verification viewed for FV-${share.id.toUpperCase().slice(0, 8)}`,
+        details: `Credential verification viewed for FV-${share.id.toUpperCase().slice(0, 8)}${providedEmail ? ` by ${providedEmail}` : ""}`,
         timestamp: new Date().toISOString(),
         status: "SUCCESS",
       });
 
-      const canView = share.status === "ACTIVE" && !isExpired && !isLimitReached;
-      const canDownload = canView && share.permission !== "view";
-      const canPreview = canView && share.permission !== "download";
+      const emailParam = providedEmail ? `?email=${encodeURIComponent(providedEmail)}` : "";
 
       // Tamper-evident, sanitized public verification response
       res.json({
@@ -1104,14 +1141,17 @@ export async function registerRoutes(
         certificateNumber: doc.certificateNumber || null,
         status: doc.verificationStatus,
         shareStatus: share.status,
-        permission: share.permission || "both",
-        isExpired,
-        canViewFile: canPreview,
-        canDownload,
-        filePreviewUrl: canPreview ? `/api/shares/${share.id}/preview` : null,
-        downloadUrl: canDownload ? `/api/shares/${share.id}/download` : null,
+        permission: "both",
+        isExpired: false,
+        canViewFile: true,
+        canDownload: true,
+        filePreviewUrl: `/api/shares/${share.id}/preview${emailParam}`,
+        downloadUrl: `/api/shares/${share.id}/download${emailParam}`,
         mimeType: doc.mimeType || null,
         originalName: doc.originalName || null,
+        requiresEmail: false,
+        authorizedEmail: providedEmail || null,
+        recipientEmails: share.recipientEmails || [],
       });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Verification request failed" });

@@ -16,6 +16,7 @@ export interface IStorage {
   // Users
   getUser(id: string): Promise<UserRecord | undefined>;
   getUserByUsername(username: string): Promise<(UserRecord & { password?: string }) | undefined>;
+  getUserByEmail(email: string): Promise<UserRecord | undefined>;
   createUser(user: { id?: string; username: string; passwordHash: string; email?: string; name?: string }): Promise<UserRecord>;
   ensureUserFolder(userId: string): Promise<void>;
 
@@ -309,6 +310,34 @@ export class SupabaseStorage implements IStorage {
       ) {
         return u;
       }
+    }
+    return undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<UserRecord | undefined> {
+    const normalized = email.trim().toLowerCase();
+    for (const u of Array.from(this.users.values())) {
+      if (u.email && u.email.toLowerCase() === normalized) {
+        const { password, ...userRecord } = u;
+        return userRecord;
+      }
+    }
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from("users").select("*").ilike("email", normalized).maybeSingle();
+        if (!error && data) {
+          return {
+            id: data.id,
+            username: data.username,
+            email: data.email || `${data.username}@filevault.local`,
+            name: data.name,
+            profileImage: data.profile_image,
+            createdAt: data.created_at,
+            updatedAt: data.updated_at,
+          };
+        }
+      } catch {}
     }
     return undefined;
   }
@@ -911,6 +940,7 @@ export class SupabaseStorage implements IStorage {
           owner_id: share.ownerId,
           document_name: share.documentName,
           document_type: share.documentType,
+          recipient_emails: share.recipientEmails || [],
           expires_at: share.expiresAt || null,
           access_limit: share.accessLimit || null,
           access_count: share.accessCount || 0,
@@ -920,7 +950,24 @@ export class SupabaseStorage implements IStorage {
           created_at: share.createdAt || new Date().toISOString(),
         });
         if (error) {
-          console.error("[Supabase DB] Error saving share:", error.message);
+          if (error.message && error.message.includes("recipient_emails")) {
+            await supabase.from("shares").upsert({
+              id: share.id,
+              document_id: share.documentId,
+              owner_id: share.ownerId,
+              document_name: share.documentName,
+              document_type: share.documentType,
+              expires_at: share.expiresAt || null,
+              access_limit: share.accessLimit || null,
+              access_count: share.accessCount || 0,
+              status: share.status || "ACTIVE",
+              allowed_fields: share.allowedFields || [],
+              permission: share.permission || "both",
+              created_at: share.createdAt || new Date().toISOString(),
+            });
+          } else {
+            console.error("[Supabase DB] Error saving share:", error.message);
+          }
         } else {
           console.log(`[Supabase DB] Successfully registered share "${share.id}" for doc "${share.documentId}"`);
         }
@@ -957,6 +1004,7 @@ export class SupabaseStorage implements IStorage {
               ownerId: data.owner_id,
               documentName: data.document_name,
               documentType: data.document_type,
+              recipientEmails: Array.isArray(data.recipient_emails) ? data.recipient_emails : (memShare?.recipientEmails || []),
               expiresAt: data.expires_at,
               accessLimit: data.access_limit,
               accessCount: Math.max(memShare?.accessCount || 0, data.access_count || 0),
@@ -1020,6 +1068,7 @@ export class SupabaseStorage implements IStorage {
             ownerId: d.owner_id,
             documentName: d.document_name,
             documentType: d.document_type,
+            recipientEmails: Array.isArray(d.recipient_emails) ? d.recipient_emails : (d.recipientEmails || []),
             expiresAt: d.expires_at,
             accessLimit: d.access_limit,
             accessCount: d.access_count,
@@ -1055,6 +1104,7 @@ export class SupabaseStorage implements IStorage {
             ownerId: d.owner_id,
             documentName: d.document_name,
             documentType: d.document_type,
+            recipientEmails: Array.isArray(d.recipient_emails) ? d.recipient_emails : (d.recipientEmails || []),
             expiresAt: d.expires_at,
             accessLimit: d.access_limit,
             accessCount: d.access_count,
@@ -1091,6 +1141,7 @@ export class SupabaseStorage implements IStorage {
       try {
         const payload: any = {};
         if (updates.status !== undefined) payload.status = updates.status;
+        if (updates.recipientEmails !== undefined) payload.recipient_emails = updates.recipientEmails;
         if (updates.accessCount !== undefined) payload.access_count = updates.accessCount;
         if (updates.expiresAt !== undefined) payload.expires_at = updates.expiresAt;
         if (updates.accessLimit !== undefined) payload.access_limit = updates.accessLimit;

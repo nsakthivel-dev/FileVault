@@ -232,14 +232,15 @@ export interface ShareRecord {
   ownerId: string;
   documentName?: string;
   documentType?: DocumentCategory;
-  expiresAt: string | null; // ISO string or null for no expiry
-  accessLimit: number | null; // number or null for unlimited
-  accessCount: number;
+  recipientEmails: string[];
   status: ShareStatus;
-  allowedFields?: string[];
-  permission?: "view" | "download" | "both";
   createdAt: string;
   updatedAt?: string;
+  expiresAt?: string | null;
+  accessLimit?: number | null;
+  accessCount?: number;
+  allowedFields?: string[];
+  permission?: "view" | "download" | "both";
 }
 
 export interface AuditLogRecord {
@@ -306,8 +307,9 @@ export const updateDocumentSchema = z.object({
 
 export const createShareSchema = z.object({
   documentId: z.string().min(1, "Document ID is required"),
-  expiresInHours: z.number().nullable().optional(), // e.g. 1, 24, 168 (7d), 720 (30d), null
-  accessLimit: z.number().int().positive().nullable().optional(), // e.g. 1, 5, 10, null
+  emails: z.array(z.string().email("Please enter a valid email address")).min(1, "At least one recipient email is required"),
+  expiresInHours: z.number().nullable().optional(),
+  accessLimit: z.number().int().positive().nullable().optional(),
   allowedFields: z.array(z.string()).optional(),
   permission: z.enum(["view", "download", "both"]).optional().default("both"),
 });
@@ -333,6 +335,11 @@ export interface PublicVerificationResponse {
   downloadUrl?: string | null;
   mimeType?: string | null;
   originalName?: string | null;
+  requiresEmail?: boolean;
+  authorizedEmail?: string | null;
+  recipientEmails?: string[];
+  errorMessage?: string | null;
+  message?: string;
 }
 
 // Compatibility mappings
