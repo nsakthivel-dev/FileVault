@@ -1170,21 +1170,39 @@ export async function registerRoutes(
         return res.json(logs);
       }
 
-      // Actions corresponding to upload, delete, and share
+      // Actions corresponding to all activity event types (uploads, shares, deletes, restores, downloads, pins, ai processing, etc.)
       const activityActions = new Set([
         "DOCUMENT_UPLOADED",
         "UPLOAD",
         "DOCUMENT_TRASHED",
         "DOCUMENT_DELETED",
         "DELETE",
+        "DOCUMENT_RESTORED",
+        "RESTORE",
         "DOCUMENT_SHARED",
         "SHARE",
         "SHARE_CREATED",
+        "SHARE_REVOKED",
+        "DOCUMENT_PINNED",
+        "DOCUMENT_UNPINNED",
+        "DOCUMENT_DOWNLOADED",
+        "DOWNLOAD",
+        "DOCUMENT_VIEWED",
+        "VIEW",
+        "DOCUMENT_REPROCESSED",
+        "DOCUMENT_REVIEWED",
+        "AI_PROCESSED",
+        "DUPLICATE_RESOLVED",
+        "CLOUD_SYNC",
+        "TRASH_EMPTIED",
+        "USER_LOGIN",
+        "LOGIN",
+        "VERIFICATION_REQUESTED",
       ]);
 
       if (req.query.activity === "true" || req.query.filter === "activity" || req.query.type === "recent") {
-        const filtered = logs.filter((log) => log.action && activityActions.has(log.action.toUpperCase()));
-        return res.json(filtered);
+        const filtered = logs.filter((log) => !log.action || activityActions.has(log.action.toUpperCase()));
+        return res.json(filtered.length > 0 ? filtered : logs);
       }
 
       if (req.query.actions) {

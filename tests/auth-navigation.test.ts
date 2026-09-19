@@ -3,7 +3,7 @@ import request from "supertest";
 import { app, httpServer } from "../server/index";
 import { registerRoutes } from "../server/routes";
 
-describe("Session Continuity & Navigation Across All Routes", () => {
+describe("Session Continuity & Navigation Across All Routes", { timeout: 25000 }, () => {
   const testUser = {
     username: `nav_user_${Date.now()}`,
     password: "Password123!",

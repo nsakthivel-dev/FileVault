@@ -43,6 +43,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatBytes, formatDate } from "@/lib/format";
 import { buildUrl, api } from "@shared/routes";
 import { DocumentRecord } from "@shared/schema";
+import { formatAuditLog } from "@/lib/audit-formatter";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -118,27 +119,12 @@ export default function DashboardPage() {
     return Math.min(Math.max((totalStorageBytes / (10 * 1024 * 1024 * 1024)) * 100, 1), 100);
   }, [totalStorageBytes]);
 
-  const allowedActivityActions = useMemo(
-    () =>
-      new Set([
-        "DOCUMENT_UPLOADED",
-        "UPLOAD",
-        "DOCUMENT_TRASHED",
-        "DOCUMENT_DELETED",
-        "DELETE",
-        "DOCUMENT_SHARED",
-        "SHARE",
-        "SHARE_CREATED",
-      ]),
-    []
-  );
-
   const recentFileActivities = useMemo(() => {
     if (!auditLogs || !Array.isArray(auditLogs)) return [];
     return auditLogs
-      .filter((log) => log.action && allowedActivityActions.has(log.action.toUpperCase()))
-      .slice(0, 10);
-  }, [auditLogs, allowedActivityActions]);
+      .filter((log) => Boolean(log.action || log.details))
+      .slice(0, 15);
+  }, [auditLogs]);
 
   const handleCopyHash = (sha256?: string) => {
     if (!sha256) return;
@@ -167,7 +153,11 @@ export default function DashboardPage() {
       const headers = await getAuthHeaders();
       const res = await fetch(`${api.auditLogs.list.path}?all=true`, { credentials: "include", headers });
       const fullLogs = res.ok ? await res.json() : (auditLogs || []);
-      const logData = JSON.stringify(fullLogs, null, 2);
+      const enrichedLogs = (Array.isArray(fullLogs) ? fullLogs : []).map((l: any) => ({
+        ...l,
+        formattedActivity: formatAuditLog(l).sentence,
+      }));
+      const logData = JSON.stringify(enrichedLogs, null, 2);
       const blob = new Blob([logData], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -969,24 +959,7 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   recentFileActivities.map((log) => {
-                    const actionUpper = log.action?.toUpperCase() || "";
-                    const isUpload = actionUpper.includes("UPLOAD");
-                    const isDelete = actionUpper.includes("TRASH") || actionUpper.includes("DELETE");
-                    const isShare = actionUpper.includes("SHARE");
-
-                    let dotColor = "bg-emerald-500";
-                    let actionTitle = "file.uploaded";
-                    let actionSubtitle = log.details || "Stored with SHA-256 fingerprint";
-
-                    if (isDelete) {
-                      dotColor = "bg-rose-500";
-                      actionTitle = actionUpper.includes("TRASH") ? "file.trashed" : "file.deleted";
-                      actionSubtitle = log.details || (actionUpper.includes("TRASH") ? "Moved to 30-day trash bin" : "Permanently purged");
-                    } else if (isShare) {
-                      dotColor = "bg-blue-500";
-                      actionTitle = "file.shared";
-                      actionSubtitle = log.details || "Share link created";
-                    }
+                    const formatted = formatAuditLog(log);
 
                     const timeAgo = (() => {
                       try {
@@ -997,23 +970,27 @@ export default function DashboardPage() {
                     })();
 
                     return (
-                      <div key={log.id} className="py-3 flex items-center justify-between text-xs hover:bg-slate-50/50 rounded-lg px-2 -mx-2 transition-colors">
-                        <div className="flex items-center space-x-3 min-w-0 pr-3">
-                          <span className={`h-2 w-2 rounded-full ${dotColor} shrink-0`} />
+                      <div key={log.id} className="py-3 flex items-start justify-between text-xs hover:bg-slate-50/60 rounded-lg px-2.5 -mx-2.5 transition-colors">
+                        <div className="flex items-start space-x-3 min-w-0 pr-3">
+                          <span className={`h-2.5 w-2.5 rounded-full ${formatted.dotColor} shrink-0 mt-1 shadow-xs`} />
                           <div className="min-w-0">
-                            <p className="font-mono text-xs font-bold text-slate-800 truncate">
-                              {actionTitle}
+                            <p className="text-xs font-medium text-slate-800 leading-snug break-words">
+                              {formatted.sentence}
                             </p>
-                            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                              <span className="font-medium text-slate-700">{log.documentName || "Document"}</span>
-                              {" • "}
-                              <span>{actionSubtitle}</span>
-                            </p>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${formatted.badgeColor}`}>
+                                {formatted.actionTitle}
+                              </span>
+                              <span className="text-[11px] text-slate-400">
+                                {timeAgo}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right font-mono text-[11px] shrink-0">
-                          <span className="text-slate-700 font-semibold block">{log.status || "SUCCESS"}</span>
-                          <span className="text-slate-400 block">{timeAgo}</span>
+                        <div className="text-right text-[11px] shrink-0 pl-2">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700">
+                            {log.status === "SUCCESS" || !log.status ? "Completed" : log.status}
+                          </span>
                         </div>
                       </div>
                     );
