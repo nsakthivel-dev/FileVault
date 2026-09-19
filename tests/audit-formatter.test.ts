@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formatAuditLog } from "../client/src/lib/audit-formatter";
-import { AuditLogRecord } from "@shared/schema";
+import { AuditLogRecord } from "../shared/schema";
 
 describe("Audit Log Human-Readable Sentence Formatter", () => {
   it("formats raw JSON shared document log with email into human sentence", () => {
