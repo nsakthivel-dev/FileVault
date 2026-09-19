@@ -36,7 +36,8 @@ import {
   ChevronRight,
   Shield,
   FileCheck,
-  Pin
+  Pin,
+  ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -77,6 +78,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isAuditExpanded, setIsAuditExpanded] = useState(false);
 
   // Modals state
   const [selectedDocForShare, setSelectedDocForShare] = useState<DocumentRecord | null>(null);
@@ -121,10 +123,12 @@ export default function DashboardPage() {
 
   const recentFileActivities = useMemo(() => {
     if (!auditLogs || !Array.isArray(auditLogs)) return [];
-    return auditLogs
-      .filter((log) => Boolean(log.action || log.details))
-      .slice(0, 15);
+    return auditLogs.filter((log) => Boolean(log.action || log.details));
   }, [auditLogs]);
+
+  const displayedActivities = useMemo(() => {
+    return isAuditExpanded ? recentFileActivities : recentFileActivities.slice(0, 5);
+  }, [recentFileActivities, isAuditExpanded]);
 
   const handleCopyHash = (sha256?: string) => {
     if (!sha256) return;
@@ -924,9 +928,9 @@ export default function DashboardPage() {
         </div>
 
         {/* BOTTOM TWO SPLIT CARDS (ACTIVITY TRAIL & SECURITY SPECS) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
           {/* Card Left: ACTIVITY TRAIL (Spans 2 cols) */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between">
+          <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col">
             <div>
               {/* Header */}
               <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
@@ -947,7 +951,7 @@ export default function DashboardPage() {
 
               {/* Activity Timeline List */}
               <div className="mt-3 divide-y divide-slate-100">
-                {recentFileActivities.length === 0 ? (
+                {displayedActivities.length === 0 ? (
                   <div className="py-8 text-center">
                     <div className="h-10 w-10 mx-auto rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-400 mb-2.5">
                       <FileText className="h-5 w-5" />
@@ -958,7 +962,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 ) : (
-                  recentFileActivities.map((log) => {
+                  displayedActivities.map((log) => {
                     const formatted = formatAuditLog(log);
 
                     const timeAgo = (() => {
@@ -998,42 +1002,61 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
+
+            {/* Expand / Collapse Footer with Arrow */}
+            {recentFileActivities.length > 5 && (
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] text-slate-400">
+                  Showing {displayedActivities.length} of {recentFileActivities.length} activities
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsAuditExpanded((prev) => !prev)}
+                  className="inline-flex items-center space-x-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors py-1.5 px-3 rounded-lg hover:bg-blue-50/70 border border-transparent hover:border-blue-100"
+                >
+                  <span>{isAuditExpanded ? "Show Less" : "View More"}</span>
+                  {isAuditExpanded ? (
+                    <ChevronDown className="h-3.5 w-3.5 rotate-180 transition-transform" />
+                  ) : (
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform" />
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Card Right: VAULT SPECIFICATIONS (Spans 1 col) */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between">
-            <div>
-              {/* Header */}
-              <div className="flex items-center space-x-2 pb-3.5 border-b border-slate-100">
-                <Shield className="h-4 w-4 text-slate-600" />
-                <span className="font-mono text-xs font-bold uppercase tracking-wider text-slate-700">
-                  SECURITY SPECIFICATIONS
-                </span>
+          {/* Card Right: VAULT SPECIFICATIONS (Spans 1 col, fixed height, self-start) */}
+          <div className="lg:col-span-1 self-start bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs">
+            {/* Header */}
+            <div className="flex items-center space-x-2 pb-3.5 border-b border-slate-100">
+              <Shield className="h-4 w-4 text-slate-600" />
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-slate-700">
+                SECURITY SPECIFICATIONS
+              </span>
+            </div>
+
+            {/* Spec Rows */}
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-xs">
+                <span className="text-slate-500 font-medium">Encryption</span>
+                <span className="font-mono font-semibold text-slate-800">AES-256 Storage</span>
               </div>
 
-              {/* Spec Rows */}
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-xs">
-                  <span className="text-slate-500 font-medium">Encryption</span>
-                  <span className="font-mono font-semibold text-slate-800">AES-256 Storage</span>
-                </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-xs">
+                <span className="text-slate-500 font-medium">Transport</span>
+                <span className="font-mono font-semibold text-slate-800">HTTPS / TLS 1.3</span>
+              </div>
 
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-xs">
-                  <span className="text-slate-500 font-medium">Transport</span>
-                  <span className="font-mono font-semibold text-slate-800">HTTPS / TLS 1.3</span>
-                </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-xs">
+                <span className="text-slate-500 font-medium">Integrity</span>
+                <span className="font-mono font-semibold text-slate-800">SHA-256 Checksum</span>
+              </div>
 
-                <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-xs">
-                  <span className="text-slate-500 font-medium">Integrity</span>
-                  <span className="font-mono font-semibold text-slate-800">SHA-256 Checksum</span>
-                </div>
-
-                <div className="flex items-center justify-between py-1.5 text-xs">
-                  <span className="text-slate-500 font-medium">Tamper Detection</span>
-                  <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Active
-                  </span>
-                </div>
+              <div className="flex items-center justify-between py-1.5 text-xs">
+                <span className="text-slate-500 font-medium">Tamper Detection</span>
+                <span className="inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Active
+                </span>
               </div>
             </div>
 
