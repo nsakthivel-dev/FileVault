@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useDocuments, useDashboardStats, useAuditLogs, useDeleteDocument, useTogglePinDocument } from "@/hooks/use-documents";
+import { getAuthHeaders } from "@/lib/auth-headers";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { UploadModal } from "@/components/documents/upload-modal";
 import { ShareModal } from "@/components/documents/share-modal";
@@ -163,7 +164,8 @@ export default function DashboardPage() {
 
   const handleExportAudit = async () => {
     try {
-      const res = await fetch(`${api.auditLogs.list.path}?all=true`, { credentials: "include" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${api.auditLogs.list.path}?all=true`, { credentials: "include", headers });
       const fullLogs = res.ok ? await res.json() : (auditLogs || []);
       const logData = JSON.stringify(fullLogs, null, 2);
       const blob = new Blob([logData], { type: "application/json" });

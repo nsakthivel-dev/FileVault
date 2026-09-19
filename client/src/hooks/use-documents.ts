@@ -2,26 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { DocumentRecord, ShareRecord, AuditLogRecord, NotificationRecord } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { supabase, isSupabaseClientConfigured } from "@/lib/supabase";
 import { copyToClipboard } from "@/lib/utils";
-
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const headers: Record<string, string> = {};
-  if (isSupabaseClientConfigured && supabase) {
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session?.access_token) {
-        headers["Authorization"] = `Bearer ${data.session.access_token}`;
-        return headers;
-      }
-    } catch {}
-  }
-  const storedUserId = typeof window !== "undefined" ? localStorage.getItem("filevault_user_id") : null;
-  if (storedUserId) {
-    headers["Authorization"] = `Bearer ${storedUserId}`;
-  }
-  return headers;
-}
+import { getAuthHeaders } from "@/lib/auth-headers";
 
 export function useDocuments(filters?: { category?: string; status?: string; search?: string; tag?: string }) {
   const queryParams = new URLSearchParams();
@@ -98,8 +80,10 @@ export function useUploadDocument() {
       if (params.recipientName) formData.append("recipientName", params.recipientName);
       if (params.description) formData.append("description", params.description);
 
+      const headers = await getAuthHeaders();
       const res = await fetch(api.documents.upload.path, {
         method: api.documents.upload.method,
+        headers,
         body: formData,
         credentials: "include",
       });
@@ -133,8 +117,10 @@ export function useBatchUpload() {
       const formData = new FormData();
       files.forEach((f) => formData.append("files", f));
 
+      const headers = await getAuthHeaders();
       const res = await fetch("/api/documents/batch", {
         method: "POST",
+        headers,
         body: formData,
         credentials: "include",
       });
@@ -168,8 +154,10 @@ export function useReprocessDocument() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const headers = await getAuthHeaders();
       const res = await fetch(`/api/documents/${id}/reprocess`, {
         method: "POST",
+        headers,
         credentials: "include",
       });
       if (!res.ok) {
@@ -196,9 +184,10 @@ export function useReviewDocument() {
 
   return useMutation({
     mutationFn: async ({ id, action, updates }: { id: string; action: "accept" | "edit" | "reclassify"; updates?: Partial<DocumentRecord> }) => {
+      const headers = await getAuthHeaders();
       const res = await fetch(`/api/documents/${id}/review`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ action, updates }),
         credentials: "include",
       });
@@ -226,9 +215,10 @@ export function useResolveDuplicate() {
 
   return useMutation({
     mutationFn: async ({ id, action, targetDocId }: { id: string; action: "keep" | "replace"; targetDocId?: string }) => {
+      const headers = await getAuthHeaders();
       const res = await fetch(`/api/documents/${id}/resolve-duplicate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ action, targetDocId }),
         credentials: "include",
       });
@@ -253,7 +243,8 @@ export function useDocumentTags() {
   return useQuery<string[]>({
     queryKey: ["/api/documents-tags"],
     queryFn: async () => {
-      const res = await fetch("/api/documents-tags", { credentials: "include" });
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/documents-tags", { credentials: "include", headers });
       if (!res.ok) return [];
       return await res.json();
     },
@@ -266,10 +257,11 @@ export function useUpdateDocument() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<DocumentRecord> }) => {
+      const headers = await getAuthHeaders();
       const url = buildUrl(api.documents.update.path, { id });
       const res = await fetch(url, {
         method: api.documents.update.method,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify(updates),
         credentials: "include",
       });

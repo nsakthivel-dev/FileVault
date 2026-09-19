@@ -87,6 +87,9 @@ export function setupAuth(app: Express) {
               });
             }
             req.user = user;
+            if (req.session && !(req.session as any).passport?.user) {
+              (req.session as any).passport = { user: user.id };
+            }
             return next();
           }
         } catch (err) {
@@ -98,6 +101,9 @@ export function setupAuth(app: Express) {
       const user = await storage.getUser(token);
       if (user) {
         req.user = user;
+        if (req.session && !(req.session as any).passport?.user) {
+          (req.session as any).passport = { user: user.id };
+        }
         return next();
       }
     }

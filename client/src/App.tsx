@@ -14,16 +14,16 @@ import TrashPage from "@/pages/trash-page";
 import DocumentPreviewPage from "@/pages/document-preview-page";
 import SettingsPage from "@/pages/settings-page";
 import VerificationPage from "@/pages/verification-page";
-import { useAuth } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { user, isLoading } = useAuth();
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading, isRestoring } = useAuth();
 
-  if (isLoading) {
+  if (isLoading || isRestoring) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-accent mb-4" />
-        <p className="text-slate-500 font-medium tracking-wide animate-pulse">Checking credentials...</p>
+        <p className="text-slate-500 font-medium tracking-wide animate-pulse">Verifying credentials...</p>
       </div>
     );
   }
@@ -32,7 +32,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     return <Redirect to="/auth" />;
   }
 
-  return <Component />;
+  return <>{children}</>;
 }
 
 function Router() {
@@ -45,31 +45,49 @@ function Router() {
 
       {/* Protected Routes */}
       <Route path="/">
-        {() => <ProtectedRoute component={DashboardPage} />}
+        <ProtectedRoute>
+          <DashboardPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/dashboard">
-        {() => <ProtectedRoute component={DashboardPage} />}
+        <ProtectedRoute>
+          <DashboardPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/documents">
-        {() => <ProtectedRoute component={DocumentsPage} />}
+        <ProtectedRoute>
+          <DocumentsPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/recent">
-        {() => <ProtectedRoute component={RecentFilesPage} />}
+        <ProtectedRoute>
+          <RecentFilesPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/shared">
-        {() => <ProtectedRoute component={SharedLinksPage} />}
+        <ProtectedRoute>
+          <SharedLinksPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/shared-links">
-        {() => <ProtectedRoute component={SharedLinksPage} />}
+        <ProtectedRoute>
+          <SharedLinksPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/trash">
-        {() => <ProtectedRoute component={TrashPage} />}
+        <ProtectedRoute>
+          <TrashPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/settings">
-        {() => <ProtectedRoute component={SettingsPage} />}
+        <ProtectedRoute>
+          <SettingsPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/d/:id">
-        {() => <ProtectedRoute component={DocumentPreviewPage} />}
+        <ProtectedRoute>
+          <DocumentPreviewPage />
+        </ProtectedRoute>
       </Route>
       <Route component={NotFound} />
     </Switch>
@@ -79,10 +97,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
