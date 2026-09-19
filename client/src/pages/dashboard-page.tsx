@@ -33,6 +33,7 @@ import {
   Award, 
   Lock, 
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Shield,
   FileCheck,
@@ -64,6 +65,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, formatDistanceToNow } from "date-fns";
 
+const auditSlideVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? 36 : -36,
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+  },
+  exit: (direction: number) => ({
+    x: direction > 0 ? -36 : 36,
+    opacity: 0,
+  }),
+};
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { data: documents, isLoading } = useDocuments();
@@ -78,7 +94,8 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isAuditExpanded, setIsAuditExpanded] = useState(false);
+  const [auditPage, setAuditPage] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
 
   // Modals state
   const [selectedDocForShare, setSelectedDocForShare] = useState<DocumentRecord | null>(null);
@@ -126,9 +143,28 @@ export default function DashboardPage() {
     return auditLogs.filter((log) => Boolean(log.action || log.details));
   }, [auditLogs]);
 
+  const totalAuditActivities = recentFileActivities.length;
   const displayedActivities = useMemo(() => {
-    return isAuditExpanded ? recentFileActivities : recentFileActivities.slice(0, 5);
-  }, [recentFileActivities, isAuditExpanded]);
+    const start = auditPage * 5;
+    return recentFileActivities.slice(start, start + 5);
+  }, [recentFileActivities, auditPage]);
+
+  const startAuditIndex = totalAuditActivities === 0 ? 0 : auditPage * 5 + 1;
+  const endAuditIndex = Math.min((auditPage + 1) * 5, totalAuditActivities);
+
+  const handlePrevAuditPage = () => {
+    if (auditPage > 0) {
+      setSlideDirection(-1);
+      setAuditPage((prev) => prev - 1);
+    }
+  };
+
+  const handleNextAuditPage = () => {
+    if ((auditPage + 1) * 5 < totalAuditActivities) {
+      setSlideDirection(1);
+      setAuditPage((prev) => prev + 1);
+    }
+  };
 
   const handleCopyHash = (sha256?: string) => {
     if (!sha256) return;
@@ -950,9 +986,9 @@ export default function DashboardPage() {
               </div>
 
               {/* Activity Timeline List */}
-              <div className="mt-3 divide-y divide-slate-100">
+              <div className="mt-3 relative overflow-hidden min-h-[295px]">
                 {displayedActivities.length === 0 ? (
-                  <div className="py-8 text-center">
+                  <div className="py-12 text-center">
                     <div className="h-10 w-10 mx-auto rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-400 mb-2.5">
                       <FileText className="h-5 w-5" />
                     </div>
@@ -962,65 +998,99 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 ) : (
-                  displayedActivities.map((log) => {
-                    const formatted = formatAuditLog(log);
+                  <AnimatePresence custom={slideDirection} mode="wait" initial={false}>
+                    <motion.div
+                      key={auditPage}
+                      custom={slideDirection}
+                      variants={auditSlideVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ duration: 0.22, ease: "easeOut" }}
+                      className="divide-y divide-slate-100"
+                    >
+                      {displayedActivities.map((log) => {
+                        const formatted = formatAuditLog(log);
 
-                    const timeAgo = (() => {
-                      try {
-                        return formatDistanceToNow(new Date(log.timestamp), { addSuffix: true });
-                      } catch {
-                        return "Recently";
-                      }
-                    })();
+                        const timeAgo = (() => {
+                          try {
+                            return formatDistanceToNow(new Date(log.timestamp), { addSuffix: true });
+                          } catch {
+                            return "Recently";
+                          }
+                        })();
 
-                    return (
-                      <div key={log.id} className="py-3 flex items-start justify-between text-xs hover:bg-slate-50/60 rounded-lg px-2.5 -mx-2.5 transition-colors">
-                        <div className="flex items-start space-x-3 min-w-0 pr-3">
-                          <span className={`h-2.5 w-2.5 rounded-full ${formatted.dotColor} shrink-0 mt-1 shadow-xs`} />
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-slate-800 leading-snug break-words">
-                              {formatted.sentence}
-                            </p>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${formatted.badgeColor}`}>
-                                {formatted.actionTitle}
-                              </span>
-                              <span className="text-[11px] text-slate-400">
-                                {timeAgo}
+                        return (
+                          <div key={log.id} className="py-3 flex items-start justify-between text-xs hover:bg-slate-50/60 rounded-lg px-2.5 -mx-2.5 transition-colors">
+                            <div className="flex items-start space-x-3 min-w-0 pr-3">
+                              <span className={`h-2.5 w-2.5 rounded-full ${formatted.dotColor} shrink-0 mt-1 shadow-xs`} />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-slate-800 leading-snug break-words">
+                                  {formatted.sentence}
+                                </p>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${formatted.badgeColor}`}>
+                                    {formatted.actionTitle}
+                                  </span>
+                                  <span className="text-[11px] text-slate-400">
+                                    {timeAgo}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right text-[11px] shrink-0 pl-2">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700">
+                                {log.status === "SUCCESS" || !log.status ? "Completed" : log.status}
                               </span>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right text-[11px] shrink-0 pl-2">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700">
-                            {log.status === "SUCCESS" || !log.status ? "Completed" : log.status}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
+                        );
+                      })}
+                    </motion.div>
+                  </AnimatePresence>
                 )}
               </div>
             </div>
 
-            {/* Expand / Collapse Footer with Arrow */}
-            {recentFileActivities.length > 5 && (
+            {/* Pagination Navigation Footer with Arrows */}
+            {totalAuditActivities > 0 && (
               <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400">
-                  Showing {displayedActivities.length} of {recentFileActivities.length} activities
+                <span className="text-xs text-slate-400 font-medium">
+                  Activity History
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setIsAuditExpanded((prev) => !prev)}
-                  className="inline-flex items-center space-x-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors py-1.5 px-3 rounded-lg hover:bg-blue-50/70 border border-transparent hover:border-blue-100"
-                >
-                  <span>{isAuditExpanded ? "Show Less" : "View More"}</span>
-                  {isAuditExpanded ? (
-                    <ChevronDown className="h-3.5 w-3.5 rotate-180 transition-transform" />
-                  ) : (
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform" />
-                  )}
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={handlePrevAuditPage}
+                    disabled={auditPage === 0}
+                    aria-label="Previous 5 activities"
+                    title={auditPage === 0 ? "First page" : "Previous 5 activities"}
+                    className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-all ${
+                      auditPage === 0
+                        ? "border-slate-200/50 text-slate-300 cursor-not-allowed bg-slate-50/40"
+                        : "border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300 active:scale-95 shadow-2xs"
+                    }`}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs font-semibold text-slate-700 font-mono px-1 select-none">
+                    {startAuditIndex}–{endAuditIndex} <span className="text-slate-400 font-normal font-sans">of</span> {totalAuditActivities} activities
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleNextAuditPage}
+                    disabled={(auditPage + 1) * 5 >= totalAuditActivities}
+                    aria-label="Next 5 activities"
+                    title={(auditPage + 1) * 5 >= totalAuditActivities ? "Last page" : "Next 5 activities"}
+                    className={`h-7 w-7 rounded-lg border flex items-center justify-center transition-all ${
+                      (auditPage + 1) * 5 >= totalAuditActivities
+                        ? "border-slate-200/50 text-slate-300 cursor-not-allowed bg-slate-50/40"
+                        : "border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300 active:scale-95 shadow-2xs"
+                    }`}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
